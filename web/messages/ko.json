@@ -1753,6 +1753,18 @@
       "configSaved": "모델 폴백 설정을 저장했습니다",
       "restored": "기본 내장 템플릿으로 되돌렸습니다",
       "restoreFailed": "복원 실패: {error}"
+    },
+    "judgeUsage": {
+      "title": "승인 Token 소모",
+      "desc": "모델 폴백 승인의 누적 사용량입니다. 따로 계량하며(worker=judge), 각 모델 설정의 통계와 섞이지 않습니다",
+      "refresh": "새로 고침",
+      "calls": "승인 호출",
+      "inputTokens": "입력 Token",
+      "outputTokens": "출력 Token",
+      "cacheRead": "캐시 읽기",
+      "cacheWrite": "캐시 쓰기",
+      "daily": "최근 30일 일별 소모(입력 + 출력)",
+      "barTitle": "{date} · {calls}회 · {tokens} tokens"
     }
   },
   "assetInterceptPage": {

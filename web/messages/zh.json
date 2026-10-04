@@ -1753,6 +1753,18 @@
       "configSaved": "模型兜底配置已保存",
       "restored": "已恢复内置默认模板",
       "restoreFailed": "恢复失败: {error}"
+    },
+    "judgeUsage": {
+      "title": "审批 Token 消耗",
+      "desc": "模型兜底审批累计用量，单独计量（worker=judge），不与各模型配置的统计混在一起",
+      "refresh": "刷新",
+      "calls": "审批调用",
+      "inputTokens": "输入 Token",
+      "outputTokens": "输出 Token",
+      "cacheRead": "缓存读",
+      "cacheWrite": "缓存写",
+      "daily": "近 30 天每日消耗（输入 + 输出）",
+      "barTitle": "{date} · {calls} 次 · {tokens} tokens"
     }
   },
   "assetInterceptPage": {
