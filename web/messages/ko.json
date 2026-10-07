@@ -26,6 +26,9 @@
       "newPasswordPlaceholder": "8자 이상",
       "submit": "비밀번호 설정 후 로그인",
       "submitting": "저장 중…",
+      "titleUnavailable": "초기화 상태를 확인할 수 없습니다",
+      "descUnavailable": "백엔드 또는 데이터베이스를 일시적으로 사용할 수 없습니다. 인스턴스에 이미 설정된 비밀번호를 덮어쓰지 않도록 초기화 진입을 잠시 닫았습니다. 서비스를 복구한 뒤 다시 시도해 주세요.",
+      "retry": "다시 시도",
       "title": "비밀번호 초기화"
     },
     "terms": {

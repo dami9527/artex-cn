@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -20,6 +21,13 @@ const (
 	authPassKey    = "auth.password_hash"
 	jwtTTL         = 7 * 24 * time.Hour
 	keyChars       = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+	// 하한은 setup 페이지의 프런트 검증과 맞춘 값이다. 검증을 프런트에만 두면 API 를
+	// 직접 호출해 우회할 수 있다. 상한은 bcrypt 의 한계로, 72 바이트를 넘으면
+	// GenerateFromPassword 가 ErrPasswordTooLong 을 반환하므로 뜻이 불분명한
+	// 「비밀번호 암호화 실패」를 보여주기 전에 미리 막는다.
+	minPasswordRunes = 8
+	maxPasswordBytes = 72
 )
 
 // 인증 엔드포인트가 HTTP 응답으로 돌려주는 사용자 노출 문구다. 한국어 UI 에서 로그인·
@@ -39,7 +47,28 @@ const (
 	authErrPasswordNotInit      = "비밀번호가 초기화되지 않았습니다. 먼저 비밀번호를 설정해 주세요"
 	authErrCurrentPasswordWrong = "현재 비밀번호가 올바르지 않습니다"
 	authErrBadCredential        = "사용자 이름 또는 비밀번호가 올바르지 않습니다"
+
+	// authErrDataSourceUnavailable 은 비밀번호 관련 읽기 작업이 실패했을 때 돌려주는
+	// 공통 문구다. 이 핸들러들은 "읽지 못함"을 "설정되지 않음"으로 취급하면 안 된다.
+	// 실제로 authInit 이 그렇게 동작해, 데이터베이스 오류 시 미인증 요청이 기존 관리자
+	// 비밀번호를 덮어쓸 수 있었다(상류 a951e4a 에서 수정).
+	authErrDataSourceUnavailable = "데이터 소스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요"
 )
+
+// validatePassword 는 통과하면 빈 문자열을, 아니면 사용자에게 그대로 보여줄 한국어
+// 사유를 돌려준다. 하한은 setup 페이지의 프런트 검증과 맞췄지만, 검증을 프런트에만
+// 두면 API 를 직접 호출해 우회할 수 있으므로 서버에서도 강제한다. 상한은 bcrypt 의
+// 한계다(72 바이트 초과 시 GenerateFromPassword 가 ErrPasswordTooLong 을 반환하므로,
+// 뜻이 불분명한 「비밀번호 암호화 실패」를 보여주기 전에 미리 막는다).
+func validatePassword(pw string) string {
+	if utf8.RuneCountInString(pw) < minPasswordRunes {
+		return fmt.Sprintf("비밀번호는 최소 %d자 이상이어야 합니다", minPasswordRunes)
+	}
+	if len(pw) > maxPasswordBytes {
+		return fmt.Sprintf("비밀번호는 %d바이트를 넘을 수 없습니다", maxPasswordBytes)
+	}
+	return ""
+}
 
 // loadOrCreateJWTKey reads the 32-byte signing key from keyDir/jwt.key. keyDir is
 // the project base dir (next to the executable), NOT the browsable workspace root
@@ -134,12 +163,20 @@ func (s *Server) requireAuth(h http.Handler) http.Handler {
 }
 
 // GET /api/auth/status — reports whether the admin password has been initialised.
+// 읽기 실패는 initialized:false 가 아니라 503 으로 돌려줘야 한다. 프런트는
+// initialized:false 를 받으면 사용자를 /setup 으로 보내 비밀번호를 설정하게 하는데
+// (login/page.tsx), 데이터베이스 장애를 200 으로 포장하면 사용자를 기존 비밀번호를
+// 덮어쓰는 경로로 밀어 넣는 셈이 된다.
 func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 	pg := s.pg(w)
 	if pg == nil {
 		return
 	}
-	hash, _, _ := pg.GetSetting(authPassKey)
+	hash, _, err := pg.GetSetting(authPassKey)
+	if err != nil {
+		writeErr(w, 503, authErrDataSourceUnavailable)
+		return
+	}
 	writeJSON(w, 200, map[string]any{"initialized": hash != ""})
 }
 
@@ -149,7 +186,11 @@ func (s *Server) authInit(w http.ResponseWriter, r *http.Request) {
 	if pg == nil {
 		return
 	}
-	existing, _, _ := pg.GetSetting(authPassKey)
+	existing, _, err := pg.GetSetting(authPassKey)
+	if err != nil {
+		writeErr(w, 503, authErrDataSourceUnavailable)
+		return
+	}
 	if existing != "" {
 		writeErr(w, 403, authErrPasswordAlreadySet)
 		return
@@ -161,13 +202,26 @@ func (s *Server) authInit(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, authErrPasswordEmpty)
 		return
 	}
+	if msg := validatePassword(req.Password); msg != "" {
+		writeErr(w, 400, msg)
+		return
+	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		writeErr(w, 500, authErrPasswordHash)
 		return
 	}
-	if err := pg.SetSetting(authPassKey, string(hash)); err != nil {
+	// INSERT ... ON CONFLICT DO NOTHING 을 쓰고 upsert 를 쓰지 않는다. 위의 GetSetting 은
+	// 빠른 실패 경로일 뿐이고, "최초 1회만 설정 가능"이라는 보장은 기본 키 제약이 진다.
+	// bcrypt 는 수십 밀리초가 걸리므로 그 사이 다른 요청이 먼저 비밀번호를 설정할 수 있고,
+	// 읽기 검사 자체도 장애로 무효가 될 수 있다.
+	inserted, err := pg.InsertSettingIfAbsent(authPassKey, string(hash))
+	if err != nil {
 		writeErr(w, 500, authErrSaveFailedPrefix+err.Error())
+		return
+	}
+	if !inserted {
+		writeErr(w, 403, authErrPasswordAlreadySet)
 		return
 	}
 	tok, err := signJWT(s.jwtKey)
@@ -202,7 +256,15 @@ func (s *Server) authChangePassword(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, authErrNewPasswordEmpty)
 		return
 	}
-	hash, ok, _ := pg.GetSetting(authPassKey)
+	if msg := validatePassword(req.NewPassword); msg != "" {
+		writeErr(w, 400, msg)
+		return
+	}
+	hash, ok, err := pg.GetSetting(authPassKey)
+	if err != nil {
+		writeErr(w, 503, authErrDataSourceUnavailable)
+		return
+	}
 	if !ok || hash == "" {
 		writeErr(w, 403, authErrPasswordNotInit)
 		return
@@ -241,7 +303,11 @@ func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 401, authErrBadCredential)
 		return
 	}
-	hash, ok, _ := pg.GetSetting(authPassKey)
+	hash, ok, err := pg.GetSetting(authPassKey)
+	if err != nil {
+		writeErr(w, 503, authErrDataSourceUnavailable)
+		return
+	}
 	if !ok || hash == "" {
 		writeErr(w, 403, authErrPasswordNotInit)
 		return
