@@ -31,6 +31,30 @@ ensure_docker(){
 }
 
 # ── ① 전부 Docker ──────────────────────────────
+# Dockerfile 은 "실행 전용"이라 미리 컴파일한 Linux 바이너리(dist/<arch>/artex)를 요구한다.
+# 상류 이미지 autumn27/artex 는 Docker Hub 에서 사라졌으므로 pull 로는 기동할 수 없다.
+build_artex_image(){
+  local os arch
+  command -v go >/dev/null 2>&1 || die "Go 가 필요합니다(Docker 이미지에 넣을 바이너리를 컴파일합니다). https://go.dev/dl/"
+  command -v npm >/dev/null 2>&1 || die "Node.js/npm 이 필요합니다(프런트엔드 정적 빌드)"
+  command -v rsync >/dev/null 2>&1 || die "rsync 가 필요합니다"
+
+  # 컨테이너는 항상 Linux 이므로 호스트 OS 와 무관하게 GOOS=linux 로 컴파일한다.
+  arch="$(go env GOARCH)"
+  info "프런트엔드를 빌드합니다(몇 분 걸릴 수 있습니다)…"
+  (cd web && npm ci --include=dev && NEXT_EXPORT=1 npx next build)
+  mkdir -p server/webui/dist
+  rsync -a --delete web/out/ server/webui/dist/
+  info "Linux/${arch} 바이너리를 컴파일합니다…"
+  mkdir -p "dist/${arch}"
+  info "(첫 빌드에서는 Playwright 브라우저 다운로드 때문에 몇 분 더 걸릴 수 있습니다)"
+  CGO_ENABLED=0 GOOS=linux GOARCH="${arch}" go build \
+    -tags embedui -trimpath \
+    -ldflags "-s -w -buildid= -X main.version=0.3.15-ko" \
+    -o "dist/${arch}/artex" ./cmd/artex
+  ok "바이너리 준비 완료: dist/${arch}/artex"
+}
+
 install_docker(){
   ensure_docker
   if [ ! -f .env ]; then
@@ -45,12 +69,11 @@ install_docker(){
   else
     info "이미 있는 .env 파일을 그대로 사용합니다"
   fi
-  info "이미지를 받아 기동합니다…"
-  docker compose pull || true
-  docker compose up -d
+  build_artex_image
+  info "한국어판 이미지를 빌드하고 기동합니다…"
+  docker compose up -d --build
   ok "기동을 완료했습니다 → http://localhost:8787"
-  warn "방금 받은 이미지는 상류(원본) autumn27/artex 중국어 빌드라, 이 저장소의 한국어화(한국어 UI·리포트)는 아직 담겨 있지 않습니다"
-  warn "한국어판 화면·출력을 보려면 이 스크립트를 다시 실행해 \"2) 로컬 실행 (go 컴파일)\" 을 고르거나, README \"소스에서 단일 바이너리 컴파일\" 경로로 빌드하세요"
+  info "이 이미지는 한국어판(한국어 UI·한국어 리포트)입니다."
   info "로그 확인: docker compose logs -f artex"
 }
 

@@ -15,7 +15,15 @@ services:
     restart: unless-stopped
 
   artex:
-    image: autumn27/artex:${ARTEX_TAG:-latest}
+    # 이미지를 직접 빌드한다. Dockerfile 은 "실행 전용"이라 미리 컴파일한 Linux
+    # 바이너리(dist/<arch>/artex)를 요구하므로, 먼저 아래를 돌려야 한다:
+    #   docker compose up -d --build      (README "한국어판 이미지를 직접 빌드하기")
+    # 상류 이미지 autumn27/artex 는 원작자가 저장소를 닫으면서 Docker Hub 에서
+    # 사라졌다(pull 하면 not found). 그래서 pull 로는 기동할 수 없다.
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${ARTEX_IMAGE:-artex-ko:local}
     depends_on:
       postgres:
         condition: service_healthy

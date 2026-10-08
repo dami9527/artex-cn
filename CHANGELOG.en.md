@@ -8,6 +8,13 @@ The upstream ARTEX project's per-version release history (0.3.x and earlier) and
 
 ## [Unreleased] · Korean edition changes
 
+### Docker deployment path restored
+
+- **The Korean edition can now be started with Docker.** The `artex` service in `docker-compose.yml` used to pull the `autumn27/artex` image, but that image disappeared from Docker Hub when the original author closed the repository (a pull now returns `not found`; the `autumn27` namespace only still holds the two `scopesentry` images). The compose file therefore gained a `build:` section and its image name became a local tag (`${ARTEX_IMAGE:-artex-ko:local}`), so a single `docker compose up -d --build` builds the Korean edition's image and starts it. The old "pull the upstream image" path no longer works.
+- **The Dockerfile's "run-only" premise is now reflected in both the docs and the scripts.** This Dockerfile does not compile inside the container; it copies a pre-built Linux binary via `COPY dist/<arch>/artex`. That requires ① a frontend static build → ② a `GOOS=linux` cross-compile → ③ `docker build`, and skipping an earlier step fails at the `COPY`. The README gained a "Building the Korean edition image locally" section covering that order, the `--platform`/`GOARCH` matching caveat, and the fact that `build.sh` writes to a different path (`dist/artex-linux-amd64/`) than the Dockerfile expects (`dist/<arch>/`).
+- **`install.sh`'s "all Docker" path and `update.sh`'s Docker path no longer pull a missing image.** Both now rebuild the image from the current source (`docker compose up -d --build`), and stop with guidance if a required tool (Go, Node.js/npm, rsync) is missing. The now-unused `ARTEX_TAG` prompt was removed from `update.sh`.
+- **`.env.example` matches the actual behaviour.** `ARTEX_TAG` (an upstream image tag) was replaced by `ARTEX_IMAGE` (the locally built image's tag), and the file now states that this repository does not publish images.
+
 ### Upstream sync (v0.3.15)
 
 Three upstream commits made after this fork's branch point (upstream `d003372`, 2026-10-03) have been brought into this repository. All three landed after that point, so merge conflicts were confined to files the localization had already touched; those spots were resolved to the Korean edition's conventions as described below.

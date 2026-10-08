@@ -89,23 +89,61 @@ The original (Chinese UI) screens are available in [`README.zh.md`](README.zh.md
 
 > **Prerequisites:** Docker and Docker Compose. The database is **PostgreSQL**, brought up by compose. Exploration requires an **LLM** (`ANTHROPIC_API_KEY` or `OPENAI_API_KEY`; can also be set in the UI).
 
-> **⚠️ The image this compose pulls is the upstream (original) Chinese build.** The `artex` service in `docker-compose.yml` pulls `autumn27/artex`, the image the original author published to Docker Hub. That image has a **Chinese UI and Chinese output**, and the Korean localization this repository adds (Korean UI, Korean reports, `langDirective`) is **not yet included** in it. To see the Korean edition's screens and output, for now build it yourself via the **single-binary build from source** path under ["Other installation methods"](#other-installation-methods) below. A Korean-edition Docker image is in the works.
+> **⚠️ `docker compose up -d` on its own will not give you the Korean edition.** The `artex` service in `docker-compose.yml` is set up to pull `autumn27/artex`, and that image **disappeared from Docker Hub** when the original author closed the repository (a pull now returns `not found`). The only remaining path is to **build it yourself**, which also gets you this repository's Korean edition rather than the Chinese UI. See [Building the Korean edition image locally](#building-the-korean-edition-image-locally) below.
+>
+> (This repository does not publish an image to Docker Hub, so `ARTEX_IMAGE` is used only as the tag of the image you build.)
 
 ```bash
 git clone https://github.com/jiwoochris/artex-ko.git
 cd artex-ko
 cp .env.example .env          # set POSTGRES_PASSWORD; ANTHROPIC_API_KEY is optional
-docker compose up -d          # brings up the artex image + postgres together
+docker compose up -d --build  # build the Korean edition image and bring it up with postgres
 # → open http://localhost:8787 (on first visit, set the admin password at /setup)
 ```
 
-The upstream image above bundles common tools (ripgrep, curl, vim, npm, nmap, and more). `./skills` and `./data` are bind-mounted to the host and survive container recreation.
+`./skills` and `./data` are bind-mounted to the host and survive container recreation.
+
+---
+
+## Building the Korean edition image locally
+
+The `Dockerfile` is a **run-only image: it does not compile anything inside the container** (what goes in is a pre-built Linux single binary). So the order matters: **① frontend → ② binary → ③ image**. Skipping an earlier step makes the image build fail at `COPY dist/<arch>/artex`.
+
+The single command `docker compose up -d --build` performs ①②③ for you. To run the steps separately, or to just build the image, use the following as-is.
+
+```bash
+cd artex-ko
+
+# ① Build the frontend static export and sync it into the embed directory
+cd web && npm ci --include=dev && NEXT_EXPORT=1 npx next build && cd ..
+mkdir -p server/webui/dist
+rsync -a --delete web/out/ server/webui/dist/     # --delete: avoids nesting on rebuild
+
+# ② Cross-compile the Linux single binary into the path the Dockerfile expects
+#    <arch> is arm64 on Apple Silicon macOS, amd64 on Intel
+mkdir -p dist/arm64
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
+  -tags embedui -trimpath \
+  -ldflags "-s -w -buildid= -X main.version=0.3.15-ko" \
+  -o dist/arm64/artex ./cmd/artex
+
+# ③ Build the image
+docker build -t artex-ko:local .
+```
+
+`docker build` targets the **build machine's architecture unless you pass `--platform`**, so the directory name from ② (`dist/arm64`) must match. On an Intel Mac or an x86_64 Linux server, use `GOARCH=amd64` and `dist/amd64` instead. To build for a different architecture, pass e.g. `docker build --platform linux/amd64 -t artex-ko:local .` (and match `GOARCH` in ②).
+
+To run the built image with compose, `docker compose up -d` is enough (omitting `--build` reuses the image you already built).
+
+> **Relation to `build.sh`:** the repository's [`build.sh`](build.sh) is for releases and writes its output to a **different path**, e.g. `dist/artex-linux-amd64/artex`. The Dockerfile looks for `dist/<arch>/artex`, so the two do not line up as-is. When using `docker build`, either specify the path yourself as in ②, or drive `build.sh` to the same path with `ARTEX_OUTPUT=dist/arm64/artex ARTEX_SKIP_FRONTEND=1 ./build.sh --target linux/arm64`.
+
+> **You cannot build the Docker image from the precompiled binaries in Releases.** The release zip contains only `skills/`, `start.sh`, and the binary — there is no `dist/<arch>/` structure, so the Dockerfile's `COPY` cannot succeed. Use the zip to run it directly without a container (see "Single-binary build from source" below).
 
 ### Other installation methods
 
 Upstream provides several methods: an install script (`./install.sh`), precompiled binaries (Releases), and a single-binary build from source. The commands and full procedure are collected in the "安装" (Installation) section of [`README.zh.md`](README.zh.md#安装) (in Chinese); the essentials are reproduced below.
 
-- **Install script:** running `./install.sh` detects/installs Docker and then lets you choose "① all-in-Docker" or "② local compile and run." Note that the default "① all-in-Docker" pulls the same **upstream Chinese image** (`autumn27/artex`) as the quick start above, so to get the Korean edition's screens and output, choose "② local compile and run" or use the **single-binary build from source** path below. The script also prints the same notice once the "① all-in-Docker" path finishes starting up.
+- **Install script:** running `./install.sh` detects/installs Docker and then lets you choose "① all-in-Docker" or "② local compile and run." "① all-in-Docker" now builds the Korean edition image from the current source (`docker compose up -d --build`); the upstream image it used to pull is gone, so that path would fail.
 - **Single-binary build from source:**
 
   ```bash

@@ -96,23 +96,62 @@ ARTEX 는 **자신이 소유하거나 서면으로 명시적 허가를 받은 �
 
 > **사전 요구:** Docker 와 Docker Compose. 데이터베이스는 **PostgreSQL** 이며 compose 가 함께 띄웁니다. 탐색에는 **LLM** 이 필요합니다(`ANTHROPIC_API_KEY` 또는 `OPENAI_API_KEY`, UI 에서도 설정 가능).
 
-> **⚠️ 지금 이 compose 가 내려받는 이미지는 상류(원본) 중국어 빌드입니다.** `docker-compose.yml` 의 `artex` 서비스는 원작자가 Docker Hub 에 올린 `autumn27/artex` 이미지를 받습니다. 이 이미지는 **중국어 UI 와 중국어 출력**이라서, 이 저장소가 더한 한국어화(한국어 UI·한국어 리포트·`langDirective`)는 **아직 담겨 있지 않습니다**. 한국어판 화면과 출력을 확인하려면 지금은 아래 ["그 밖의 설치 방법"](#그-밖의-설치-방법)에 있는 **소스에서 단일 바이너리 컴파일** 경로로 직접 빌드하십시오. 한국어판 Docker 이미지의 배포는 준비 중입니다.
+> **⚠️ `docker compose up -d` 만 실행하면 한국어판이 뜨지 않습니다. `docker-compose.yml` 의 `artex` 서비스는 `autumn27/artex` 이미지를 받도록 되어 있는데, 이 이미지는 원작자가 저장소를 닫으면서 **Docker Hub 에서 사라졌습니다**(현재 pull 하면 `not found`). 남아 있는 경로는 **직접 빌드**뿐이며, 그러면 중국어 UI 가 아니라 이 저장소의 한국어판이 뜹니다. 아래 [한국어판 이미지를 직접 빌드하기](#한국어판-이미지를-직접-빌드하기)를 보십시오.
+>
+> (이미지를 Docker Hub 에 올려 두지 않으므로, `ARTEX_TAG` 는 빌드한 이미지의 태그로만 씁니다.)
 
 ```bash
 git clone https://github.com/jiwoochris/artex-ko.git
 cd artex-ko
 cp .env.example .env          # POSTGRES_PASSWORD 설정, ANTHROPIC_API_KEY 는 선택
-docker compose up -d          # artex 이미지 + postgres 를 함께 기동
+docker compose up -d --build  # 한국어판 이미지를 직접 빌드해 postgres 와 함께 기동
 # → http://localhost:8787 접속 (처음 들어가면 /setup 에서 관리자 비밀번호 설정)
 ```
 
-위 상류 이미지에는 자주 쓰는 도구(ripgrep·curl·vim·npm·nmap 등)가 들어 있습니다. `./skills` 와 `./data` 는 바인드 마운트로 호스트에 남아 컨테이너를 다시 만들어도 보존됩니다.
+`./skills` 와 `./data` 는 바인드 마운트로 호스트에 남아 컨테이너를 다시 만들어도 보존됩니다.
+
+---
+
+## 한국어판 이미지를 직접 빌드하기
+
+`Dockerfile` 은 **안에서 컴파일하지 않는 "실행 전용" 이미지**입니다(컨테이너에 들어가는 것은 미리 컴파일한 Linux 단일 바이너리). 그래서 순서가 중요합니다: **① 프런트엔드 → ② 바이너리 → ③ 이미지** 순으로, 앞 단계를 건너뛰면 이미지 빌드가 `COPY dist/<arch>/artex` 에서 실패합니다.
+
+`docker compose up -d --build` 한 줄이 아래 ①②③ 을 대신합니다. 단계를 따로 돌리거나 이미지만 만들고 싶을 때는 다음을 그대로 쓰십시오.
+
+```bash
+cd artex-ko
+
+# ① 프런트엔드 정적 빌드 → 내장 디렉터리로 동기화
+cd web && npm ci --include=dev && NEXT_EXPORT=1 npx next build && cd ..
+mkdir -p server/webui/dist
+rsync -a --delete web/out/ server/webui/dist/     # --delete: 재빌드 시 중첩 방지
+
+# ② Linux 단일 바이너리 크로스 컴파일 (Dockerfile 이 기대하는 경로에 둔다)
+#    <arch> 는 macOS Apple Silicon 이면 arm64, Intel 이면 amd64
+mkdir -p dist/arm64
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
+  -tags embedui -trimpath \
+  -ldflags "-s -w -buildid= -X main.version=0.3.15-ko" \
+  -o dist/arm64/artex ./cmd/artex
+
+# ③ 이미지 빌드
+docker build -t artex-ko:local .
+docker run --rm artex-ko:local --help            # 동작 확인(선택)
+```
+
+`docker build` 의 대상 아키텍처는 **`--platform` 을 주지 않으면 빌드 머신과 같아집니다**. 그래서 ②에서 만든 디렉터리 이름(`dist/arm64`)과 일치해야 합니다. Intel Mac·Linux 서버(x86_64)라면 `GOARCH=amd64` + `dist/amd64` 로 바꾸십시오. 다른 아키텍처용 이미지를 만들려면 `docker build --platform linux/amd64 -t artex-ko:local .` 처럼 지정합니다(이때도 ②의 `GOARCH` 를 맞춰야 합니다).
+
+빌드된 이미지를 compose 로 띄우려면 `docker compose up -d` 로 충분합니다(`--build` 를 빼면 이미 빌드한 이미지를 재사용합니다).
+
+> **`build.sh` 와의 관계:** 저장소의 [`build.sh`](build.sh) 는 릴리스용으로 `dist/artex-linux-amd64/artex` 처럼 **다른 경로**에 산출물을 둡니다. Dockerfile 은 `dist/<arch>/artex` 를 찾으므로 그대로는 맞지 않습니다. `docker build` 를 쓸 때는 위 ②처럼 경로를 직접 지정하거나, `ARTEX_OUTPUT=dist/arm64/artex ARTEX_SKIP_FRONTEND=1 ./build.sh --target linux/arm64` 로 `build.sh` 를 이용해 같은 경로에 떨어뜨릴 수 있습니다.
+
+> **사전 컴파일 바이너리(Releases)로는 Docker 이미지를 만들 수 없습니다.** 릴리스 zip 에는 `skills/`·`start.sh`·바이너리만 들어 있고 `dist/<arch>/` 구조가 없어 Dockerfile 의 `COPY` 가 성립하지 않습니다. zip 으로는 컨테이너 없이 직접 실행하십시오(→ 아래 "소스에서 단일 바이너리 컴파일").
 
 ### 그 밖의 설치 방법
 
 원본 저장소는 설치 스크립트(`./install.sh`), 사전 컴파일 바이너리(Releases), 소스 단일 바이너리 컴파일 등 여러 방법을 제공합니다. 명령과 절차는 [`README.zh.md`](README.zh.md#安装)의 "安装"(설치) 절에 정리되어 있으며, 아래 핵심만 옮깁니다.
 
-- **설치 스크립트:** `./install.sh` 를 실행하면 Docker 감지·설치 후 "① 전부 Docker" 또는 "② 로컬 컴파일 실행"을 고르게 합니다. 다만 기본값인 "① 전부 Docker" 는 위 빠른 시작과 같은 **상류 중국어 이미지**(`autumn27/artex`)를 받으므로, 한국어판 화면·출력을 보려면 "② 로컬 컴파일 실행"을 고르거나 아래 **소스에서 단일 바이너리 컴파일** 경로로 빌드하십시오. 스크립트도 "① 전부 Docker" 기동을 마치면 같은 안내를 출력합니다.
+- **설치 스크립트:** `./install.sh` 를 실행하면 Docker 감지·설치 후 "① 전부 Docker" 또는 "② 로컬 컴파일 실행"을 고르게 합니다. 다만 "① 전부 Docker" 는 위에서 설명한 **사라진 상류 이미지**(`autumn27/artex`)를 받으므로 실패합니다. Docker 로 쓰려면 `docker compose up -d --build` 를 쓰거나, "② 로컬 컴파일 실행"을 고르십시오.
 - **소스에서 단일 바이너리 컴파일:**
 
   ```bash

@@ -8,6 +8,13 @@
 
 ## [Unreleased] · 한국어판 변경
 
+### Docker 배포 경로 복구
+
+- **Docker 로 한국어판을 띄울 수 있게 했습니다.** `docker-compose.yml` 의 `artex` 서비스는 `autumn27/artex` 이미지를 받도록 되어 있었는데, 이 이미지는 원작자가 저장소를 닫으면서 Docker Hub 에서 사라졌습니다(현재 pull 하면 `not found`, `autumn27` 네임스페이스에는 `scopesentry` 두 개만 남아 있습니다). 그래서 compose 에 `build:` 를 넣고 이미지 이름을 로컬 태그(`${ARTEX_IMAGE:-artex-ko:local}`)로 바꿔, `docker compose up -d --build` 한 줄로 한국어판 이미지를 직접 빌드해 기동하도록 했습니다. 상류 이미지를 쓰던 경로(`docker compose pull`)는 더 이상 성립하지 않습니다.
+- **`Dockerfile` 이 "실행 전용"이라는 전제를 문서와 스크립트에 반영했습니다.** 이 Dockerfile 은 컨테이너 안에서 컴파일하지 않고 `COPY dist/<arch>/artex` 로 미리 만든 Linux 바이너리를 넣습니다. 따라서 ① 프런트엔드 정적 빌드 → ② `GOOS=linux` 크로스 컴파일 → ③ `docker build` 순서가 필요하고, 앞 단계를 건너뛰면 `COPY` 에서 실패합니다. README 에 ["한국어판 이미지를 직접 빌드하기"](README.md#한국어판-이미지를-직접-빌드하기) 절을 새로 두어 이 순서와 `--platform`·`GOARCH` 일치 주의점, 그리고 `build.sh` 와 Dockerfile 이 기대하는 경로가 다르다는 점(`dist/artex-linux-amd64/` vs `dist/<arch>/`)을 적었습니다.
+- **`install.sh` 의 "① 전부 Docker" 와 `update.sh` 의 Docker 경로가 사라진 이미지를 받던 문제를 고쳤습니다.** 이제 두 스크립트 모두 현재 소스로 이미지를 다시 빌드합니다(`docker compose up -d --build`). 필요한 도구(Go·Node.js/npm·rsync)가 없으면 그 자리에서 안내하고 멈춥니다. `update.sh` 에서 더 이상 쓰이지 않는 `ARTEX_TAG` 입력 단계는 제거했습니다.
+- **`.env.example` 을 실제 동작에 맞췄습니다.** `ARTEX_TAG`(상류 이미지 태그) 대신 `ARTEX_IMAGE`(로컬로 빌드한 이미지 태그)를 두고, 이 저장소가 이미지를 배포하지 않는다는 점을 명시했습니다.
+
 ### 상류 동기화 (v0.3.15)
 
 포크 지점(상류 `d003372`, 2026-10-03) 이후 상류가 올린 커밋 세 건을 이 저장소로 가져왔습니다. 셋 다 포크 이후 시점의 상류 변경이라 병합 충돌은 한국어화가 이미 손댄 파일에만 국한됐고, 그 지점은 아래처럼 한국어판 규약에 맞춰 해소했습니다.
