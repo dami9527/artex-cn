@@ -13,6 +13,11 @@ const nextConfig = {
   // 避免父目录的 lockfile 影响根目录推断及资源路径生成。
   turbopack: { root: fileURLToPath(new URL(".", import.meta.url)) },
   reactCompiler: true,
+  experimental: {
+    // app/global-not-found.tsx 를 켠다. 정적 내보내기가 만드는 최상위 404.html 에는
+    // app/not-found.tsx 가 쓰이지 않아(Next 기본 영어 페이지가 나간다) 이 플래그가 필요하다.
+    globalNotFound: true,
+  },
   // 允许从局域网 IP 访问 dev 资源（HMR），按需增删。
   // dev 阶段放开任意 IPv4 来源访问 /_next/* 与 HMR（局域网 IP 变动也不受影响）。
   // 注意：Next 出于安全禁止裸 "*"，需用分段通配；"*.*.*.*" 匹配任意 IPv4。

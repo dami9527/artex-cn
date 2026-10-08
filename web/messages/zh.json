@@ -180,13 +180,13 @@
     }
   },
   "notFound": {
-    "back": "Go back home",
-    "description": "The page you are looking for could not be found.",
-    "title": "Page not found."
+    "back": "返回首页",
+    "description": "您访问的页面不存在。",
+    "title": "找不到页面"
   },
   "search": {
     "button": "Search",
-    "empty": "No results found.",
+    "empty": "没有匹配的结果。",
     "placeholder": "Search dashboards, users, and more…"
   },
   "status": {
@@ -3704,6 +3704,57 @@
       "sec": "{n} 秒",
       "min": "{n} 分钟",
       "hour": "{n} 小时"
+    }
+  },
+  "layoutControls": {
+    "title": "偏好设置",
+    "desc": "自定义仪表盘布局偏好。",
+    "themePreset": "主题预设",
+    "themePresetPlaceholder": "预设",
+    "fonts": "字体",
+    "fontsPlaceholder": "选择字体",
+    "themeMode": "主题模式",
+    "pageLayout": "页面布局",
+    "navbarBehavior": "导航栏行为",
+    "sidebarStyle": "侧边栏样式",
+    "sidebarCollapseMode": "侧边栏折叠方式",
+    "restoreDefaults": "恢复默认",
+    "aria": {
+      "toggleSettings": "打开偏好设置"
+    },
+    "option": {
+      "light": "浅色",
+      "dark": "深色",
+      "system": "跟随系统",
+      "centered": "居中",
+      "fullWidth": "全宽",
+      "sticky": "固定",
+      "scroll": "滚动",
+      "inset": "内嵌",
+      "sidebar": "侧边栏",
+      "floating": "悬浮",
+      "icon": "图标",
+      "offcanvas": "抽屉"
+    },
+    "preset": {
+      "default": "默认",
+      "brutalist": "粗野主义",
+      "softPop": "柔和流行",
+      "tangerine": "橘色"
+    },
+    "ariaToggle": {
+      "light": "切换到浅色",
+      "dark": "切换到深色",
+      "system": "切换到跟随系统",
+      "centered": "切换到居中",
+      "fullWidth": "切换到全宽",
+      "sticky": "切换到固定",
+      "scroll": "切换到滚动",
+      "inset": "切换到内嵌",
+      "sidebar": "切换到侧边栏",
+      "floating": "切换到悬浮",
+      "icon": "切换到图标",
+      "offcanvas": "切换到抽屉"
     }
   }
 }

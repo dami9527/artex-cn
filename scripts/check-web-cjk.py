@@ -62,6 +62,7 @@ resolveLocale), `NEXT_PUBLIC_LOCALE=zh` 로 빌드하면 화면이 전부 중국
 (기본값은 저장소 루트의 `web/out`. CI 는 `web` 작업 디렉터리에서
 `python3 -I ../scripts/check-web-cjk.py` 로 부른다.)
 """
+import json
 import os
 import re
 import subprocess
@@ -82,6 +83,21 @@ HAN = re.compile(r"[\u3400-\u9fff\uf900-\ufaff\U00020000-\U0002ffff]")
 # 비우면 어떤 한자든 게이트에 걸린다. 예외를 더할 때는 글자와 사유를 함께 적는다.
 # 예) ALLOWED_HAN = {"中", "文"}  # 언어 스위처 '中文' 라벨(상류 대조용)
 ALLOWED_HAN: set = set()
+
+# zh.json 에서 영어로 두는 것이 맞는 값(= 중국어 UI 에서도 영어를 쓰는 기술 용어).
+# 한국어판은 이런 단어를 한글로 옮겼지만(에이전트·스킬), 중국어 UI 에서는 영문 표기가
+# 관용이다. 새 항목을 추가할 때는 왜 영문이 맞는지 이 목록 옆에 적는다.
+# 이 목록에 없는 값이 zh 에서 영어로 나타나면 아래 카탈로그 검사가 회귀로 잡는다.
+ALLOWED_ZH_LATIN: set = {
+    "Agent",    # 화면·문서 모두 「Agent」로 통용(에이전트보다 우세)
+    "Skill",    # ARTEX 의 기능 단위 이름. 상류 원문도 영문 유지
+    "Search",   # 상단 검색 버튼
+    "App",      # 자산 유형 라벨(엔드포인트/服务 등과 나란히 쓰임)
+    "cache",    # token 사용량 4종 라벨(input/cache/output) 중 하나
+    "input",
+    "output",
+}
+
 
 
 def resolve_locale() -> str:
@@ -121,6 +137,64 @@ def verify_locale_source() -> None:
         )
 
 
+def check_catalog_fallbacks(root: str) -> int:
+    """zh.json 의 값이 아직 영어인데 ko.json 은 번역돼 있으면 알린다.
+
+    이 게이트가 잡는 다른 유형의 누출: 화면에 나가는 값이 `zh.json` 안에서 **영어로**
+    남아 있는 경우다. 통합 한자 검사로는 절대 걸리지 않는데(영어니까), 실제로 그렇게
+    새어 나갔다 — `notFound` 세 키와 `search.empty` 가 `zh.json` 에서 영어였고, 그래서
+    중국어 UI 빌드의 404 가 Next 기본 영어 페이지로 보였다. ko.json 을 기준선으로 삼아
+    "ko 는 한국어인데 zh 는 영어" 인 값만 보고하므로, 양쪽 모두에서 관용적으로 영어를
+    쓰는 기술 용어(Bot Token 등)는 걸리지 않는다.
+    """
+    try:
+        with open(os.path.join(root, "web", "messages", "zh.json"), encoding="utf-8") as fh:
+            zh = json.load(fh)
+        with open(os.path.join(root, "web", "messages", "ko.json"), encoding="utf-8") as fh:
+            ko = json.load(fh)
+    except (OSError, ValueError) as exc:
+        print(f"경고: 메시지 카탈로그를 읽지 못해 검사를 건너뜁니다 — {exc}")
+        return 0
+
+    def flat(node: object, prefix: str = "") -> dict:
+        out = {}
+        if isinstance(node, dict):
+            for k, v in node.items():
+                out.update(flat(v, f"{prefix}.{k}"))
+        else:
+            out[f"{prefix}"] = node
+        return out
+
+    def is_latin(text: str) -> bool:
+        return bool(text) and all(ord(c) < 128 for c in text)
+
+    def has_non_latin(text: str) -> bool:
+        return not is_latin(text)
+
+    offenders = []
+    ko_flat, zh_flat = flat(ko), flat(zh)
+    for key, value in sorted(zh_flat.items()):
+        other = ko_flat.get(key)
+        if not isinstance(value, str) or not isinstance(other, str):
+            continue
+        # zh 가 영어이고 ko 는 한국어/한자 → zh 쪽이 미번역일 가능성이 높다.
+        # 단, 중국어 UI 에서도 영문을 쓰는 기술 용어는 허용한다.
+        if is_latin(value) and has_non_latin(other) and value not in ALLOWED_ZH_LATIN:
+            offenders.append((key, value, other))
+
+    if offenders:
+        print(f"중국어 카탈로그 미번역 의심 {len(offenders)}건 — zh.json 값이 영어입니다:")
+        for key, value, other in offenders:
+            print(f"  {key}\n    zh: {value[:70]!r}\n    ko: {other[:70]!r}")
+        print(
+            "\nzh.json 의 해당 값을 중국어로 채우거나, 상류 원문 그대로 두는 것이 맞다면 "
+            "이 검사의 기준선(ko.json)을 확인하세요."
+        )
+        return 1
+    print("중국어 카탈로그 미번역 의심 0 — zh.json 의 값이 모두 번역돼 있습니다.")
+    return 0
+
+
 def find_out_dir() -> str:
     """검사할 `out` 디렉터리를 정한다.
 
@@ -136,12 +210,23 @@ def find_out_dir() -> str:
 
 def main() -> int:
     verify_locale_source()
+
+    # 카탈로그 검사는 빌드 산출물이 아니라 소스(web/messages)를 보므로 locale 과 무관하게
+    # 먼저 돈다. zh 빌드에서도 영어로 남은 값은 그대로 문제이기 때문이다.
+    try:
+        root = subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"], text=True
+        ).strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    catalog_rc = check_catalog_fallbacks(root)
+
     if resolve_locale() == "zh":
         print(
             "NEXT_PUBLIC_LOCALE=zh — 중국어 UI 빌드이므로 한자 검사를 건너뜁니다"
             "(의도된 중국어이며 누출이 아님)."
         )
-        return 0
+        return catalog_rc
 
     out_dir = find_out_dir()
     if not os.path.isdir(out_dir):
@@ -184,7 +269,7 @@ def main() -> int:
         print("경고: 검사한 HTML 이 없습니다 — 빌드가 제대로 되었는지 확인하세요.")
         return 2
     print("중국어(한자) 누출 0 — 사용자 노출 HTML 이 전부 한국어/비한자입니다.")
-    return 0
+    return catalog_rc
 
 
 if __name__ == "__main__":
