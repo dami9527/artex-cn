@@ -147,6 +147,37 @@ docker run --rm artex-ko:local --help            # 동작 확인(선택)
 
 > **사전 컴파일 바이너리(Releases)로는 Docker 이미지를 만들 수 없습니다.** 릴리스 zip 에는 `skills/`·`start.sh`·바이너리만 들어 있고 `dist/<arch>/` 구조가 없어 Dockerfile 의 `COPY` 가 성립하지 않습니다. zip 으로는 컨테이너 없이 직접 실행하십시오(→ 아래 "소스에서 단일 바이너리 컴파일").
 
+### 페이지가 안 열릴 때 (Docker)
+
+`http://localhost:8787` 이 열리지 않으면 먼저 컨테이너 상태와 로그를 봅니다.
+
+```bash
+docker compose ps
+docker compose logs artex | tail -20
+```
+
+**증상: 브라우저가 연결을 못 하거나, 로그에 `password authentication failed for user "artex" (SQLSTATE 28P01)` 가 반복되고 `비정상 종료 (code=1) … 재시작` 이 찍힌다.**
+
+PostgreSQL 공식 이미지는 `POSTGRES_PASSWORD` 를 **데이터 볼륨이 비어 있을 때 딱 한 번만** 읽어 `initdb` 에 씁니다. 그래서 **볼륨이 이미 있는 상태에서 `.env` 의 비밀번호를 바꾸면 그 값은 무시되고**, artex 만 새 비밀번호로 접속을 시도해 인증에 실패합니다. artex 는 DB 없이 뜨지 못하므로 종료→재시작을 반복하고, 포트는 Docker 가 잡고 있어도 컨테이너 안에 리스닝 프로세스가 없어 연결이 끊깁니다.
+
+처음 설치할 때 `.env` 를 먼저 만들지 않고 스택을 한 번 올렸다가 나중에 비밀번호를 정한 경우에도 같은 일이 생깁니다. 순서는 항상 **`.env` 를 먼저 → `docker compose up -d --build`** 입니다.
+
+복구 방법 두 가지:
+
+```bash
+# 방법 A: 데이터를 버리고 다시 초기화 (아직 쓸 데이터가 없을 때)
+docker compose down -v
+docker compose up -d --build
+
+# 방법 B: 볼륨의 데이터를 지키면서 DB 비밀번호만 .env 에 맞춘다
+docker compose exec postgres psql -U artex -d artex -c "ALTER USER artex WITH PASSWORD '새비밀번호';"
+docker compose restart artex
+```
+
+> `POSTGRES_PASSWORD` 는 최초 1회만 쓰이므로, 나중에 바꾸려면 `.env` 만 고쳐서는 반영되지 않습니다. 위 B 처럼 DB 쪽 비밀번호를 함께 바꾸십시오.
+
+`./data` 에는 `jwt.key` 가 있습니다. 이 파일을 지우면 발급된 로그인 토큰이 모두 무효가 되므로 함부로 지우지 마십시오(`docker compose down -v` 는 `./data` 가 아니라 `pgdata` 볼륨만 지웁니다).
+
 ### 그 밖의 설치 방법
 
 원본 저장소는 설치 스크립트(`./install.sh`), 사전 컴파일 바이너리(Releases), 소스 단일 바이너리 컴파일 등 여러 방법을 제공합니다. 명령과 절차는 [`README.zh.md`](README.zh.md#安装)의 "安装"(설치) 절에 정리되어 있으며, 아래 핵심만 옮깁니다.

@@ -14,6 +14,7 @@
 - **`Dockerfile` 이 "실행 전용"이라는 전제를 문서와 스크립트에 반영했습니다.** 이 Dockerfile 은 컨테이너 안에서 컴파일하지 않고 `COPY dist/<arch>/artex` 로 미리 만든 Linux 바이너리를 넣습니다. 따라서 ① 프런트엔드 정적 빌드 → ② `GOOS=linux` 크로스 컴파일 → ③ `docker build` 순서가 필요하고, 앞 단계를 건너뛰면 `COPY` 에서 실패합니다. README 에 ["한국어판 이미지를 직접 빌드하기"](README.md#한국어판-이미지를-직접-빌드하기) 절을 새로 두어 이 순서와 `--platform`·`GOARCH` 일치 주의점, 그리고 `build.sh` 와 Dockerfile 이 기대하는 경로가 다르다는 점(`dist/artex-linux-amd64/` vs `dist/<arch>/`)을 적었습니다.
 - **`install.sh` 의 "① 전부 Docker" 와 `update.sh` 의 Docker 경로가 사라진 이미지를 받던 문제를 고쳤습니다.** 이제 두 스크립트 모두 현재 소스로 이미지를 다시 빌드합니다(`docker compose up -d --build`). 필요한 도구(Go·Node.js/npm·rsync)가 없으면 그 자리에서 안내하고 멈춥니다. `update.sh` 에서 더 이상 쓰이지 않는 `ARTEX_TAG` 입력 단계는 제거했습니다.
 - **`.env.example` 을 실제 동작에 맞췄습니다.** `ARTEX_TAG`(상류 이미지 태그) 대신 `ARTEX_IMAGE`(로컬로 빌드한 이미지 태그)를 두고, 이 저장소가 이미지를 배포하지 않는다는 점을 명시했습니다.
+- **비밀번호를 나중에 바꿔 생기는 기동 실패를 문서화했습니다.** PostgreSQL 공식 이미지는 `POSTGRES_PASSWORD` 를 **볼륨이 비어 있을 때 한 번만** 읽어 `initdb` 에 쓰므로, 스택을 이미 한 번 올린 뒤 `.env` 의 비밀번호를 바꾸면 그 값이 무시되고 artex 만 새 비밀번호로 접속해 `28P01` 인증 실패 → `비정상 종료 (code=1)` 재시작 루프에 빠집니다(포트는 Docker 가 잡고 있어도 컨테이너 안에 리스닝 프로세스가 없어 브라우저는 연결 실패로 보입니다). README(ko·en)에 ["페이지가 안 열릴 때 (Docker)"](README.md#페이지가-안-열릴-때-docker) 절을 두어 로그 확인 방법과 두 가지 복구법(`down -v` 후 재초기화 / `ALTER USER` 로 볼륨 데이터를 지키며 비밀번호 정렬)을 적고, `.env.example` 에도 같은 경고를 넣었습니다. 순서는 항상 **`.env` 먼저 → `docker compose up -d --build`** 입니다.
 
 ### 상류 동기화 (v0.3.15)
 

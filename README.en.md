@@ -139,6 +139,37 @@ To run the built image with compose, `docker compose up -d` is enough (omitting 
 
 > **You cannot build the Docker image from the precompiled binaries in Releases.** The release zip contains only `skills/`, `start.sh`, and the binary — there is no `dist/<arch>/` structure, so the Dockerfile's `COPY` cannot succeed. Use the zip to run it directly without a container (see "Single-binary build from source" below).
 
+### When the page will not open (Docker)
+
+If `http://localhost:8787` does not open, check container state and logs first.
+
+```bash
+docker compose ps
+docker compose logs artex | tail -20
+```
+
+**Symptom: the browser cannot connect, and the log repeats `password authentication failed for user "artex" (SQLSTATE 28P01)` followed by `비정상 종료 (code=1) … 재시작`.**
+
+The official PostgreSQL image reads `POSTGRES_PASSWORD` **exactly once, when the data volume is empty**, and uses it for `initdb`. So **if you change the password in `.env` while the volume already exists, that value is ignored** — only artex tries to connect with the new password and fails authentication. artex cannot start without a database, so it exits and restarts in a loop; Docker still holds the port, but with no listening process inside the container the connection is dropped.
+
+The same thing happens if you started the stack once before creating `.env` and only set the password afterwards. The order is always **`.env` first → `docker compose up -d --build`**.
+
+Two ways to recover:
+
+```bash
+# Option A: discard the data and re-initialize (when there is nothing worth keeping yet)
+docker compose down -v
+docker compose up -d --build
+
+# Option B: keep the volume's data and align the DB password with .env
+docker compose exec postgres psql -U artex -d artex -c "ALTER USER artex WITH PASSWORD 'new-password';"
+docker compose restart artex
+```
+
+> `POSTGRES_PASSWORD` is used only once, so editing `.env` later does not change it. Change the password on the database side too, as in Option B.
+
+`./data` holds `jwt.key`. Deleting it invalidates every issued login token, so leave it alone (`docker compose down -v` removes the `pgdata` volume, not `./data`).
+
 ### Other installation methods
 
 Upstream provides several methods: an install script (`./install.sh`), precompiled binaries (Releases), and a single-binary build from source. The commands and full procedure are collected in the "安装" (Installation) section of [`README.zh.md`](README.zh.md#安装) (in Chinese); the essentials are reproduced below.
