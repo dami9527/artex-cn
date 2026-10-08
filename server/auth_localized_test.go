@@ -7,14 +7,14 @@ import (
 	"testing"
 )
 
-// 인증 응답 문구의 한국어화(백로그 F3b)를 지키는 회귀 방어 테스트다. DB 가 없어도
-// 도는 두 경로로 확인한다: ① requireAuth 미들웨어는 pg 를 거치지 않으므로 실제 HTTP
-// 응답 본문까지 검사하고, ② 나머지 핸들러 문구는 명명 상수라 상수 자체를 검사한다.
-// 한국어 판정은 F3a 가 만든 assertKoreanError 헬퍼(한글 포함·중국어 한자 0)를 재사용한다.
+// 守护认证响应文案中文化(待办 F3b)的回归防御测试。即使没有 DB，
+// 也用两条可跑通的路径检查: ① requireAuth 中间件不经 pg，因此检查真实 HTTP
+// 响应正文；② 其余处理器文案是具名常量，直接检查常量本身。
+// 中文判定复用 F3a 的 assertChineseError 辅助函数(含汉字·无谚文)。
 
-// TestRequireAuthMessagesLocalized 는 토큰이 없거나 잘못됐을 때 requireAuth 가 돌려주는
-// 401 응답 본문이 한국어이고 중국어 한자가 없음을 실제 HTTP 핸들러로 확인한다. 이
-// 미들웨어는 데이터베이스를 쓰지 않아 DB 없는 환경에서도 끝까지 실행된다.
+// TestRequireAuthMessagesLocalized 用真实 HTTP 处理器确认: 没有 token 或 token
+// 非法时 requireAuth 返回的 401 响应正文是中文且不含谚文。这个
+// 中间件不使用数据库，因此在无 DB 的环境也能跑到最后。
 func TestRequireAuthMessagesLocalized(t *testing.T) {
 	s := &Server{jwtKey: []byte(strings.Repeat("k", 32))}
 	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -27,8 +27,8 @@ func TestRequireAuthMessagesLocalized(t *testing.T) {
 		bearer string
 		want   string
 	}{
-		{"토큰 없음", "", authErrUnauthorized},
-		{"토큰 무효", "Bearer not-a-valid-token", authErrTokenInvalid},
+		{"无 token", "", authErrUnauthorized},
+		{"token 无效", "Bearer not-a-valid-token", authErrTokenInvalid},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -40,20 +40,20 @@ func TestRequireAuthMessagesLocalized(t *testing.T) {
 			h.ServeHTTP(rec, r)
 
 			if rec.Code != http.StatusUnauthorized {
-				t.Fatalf("상태 코드 = %d, 기대 401", rec.Code)
+				t.Fatalf("状态码 = %d, 期望 401", rec.Code)
 			}
 			body := rec.Body.String()
 			if !strings.Contains(body, c.want) {
-				t.Errorf("응답 본문에 %q 가 없습니다: %s", c.want, body)
+				t.Errorf("响应正文里没有 %q: %s", c.want, body)
 			}
-			assertKoreanError(t, c.name, body)
+			assertChineseError(t, c.name, body)
 		})
 	}
 }
 
-// TestAuthErrorConstantsLocalized 는 인증 핸들러가 쓰는 사용자 노출 문구 상수가 모두
-// 한글을 포함하고 중국어 한자를 포함하지 않음을 단언한다. requireAuth 로 직접 칠 수
-// 없는(= pg 를 거치는) 핸들러의 문구까지 DB 없이 회귀를 잡는다.
+// TestAuthErrorConstantsLocalized 断言认证处理器使用的用户可见文案常量
+// 全部含汉字且不含谚文。连无法直接用 requireAuth 打到
+// (= 要经 pg 的)处理器文案，也能在没有 DB 时抓住回归。
 func TestAuthErrorConstantsLocalized(t *testing.T) {
 	consts := map[string]string{
 		"authErrUnauthorized":         authErrUnauthorized,
@@ -70,6 +70,6 @@ func TestAuthErrorConstantsLocalized(t *testing.T) {
 		"authErrBadCredential":        authErrBadCredential,
 	}
 	for name, msg := range consts {
-		assertKoreanError(t, name, msg)
+		assertChineseError(t, name, msg)
 	}
 }

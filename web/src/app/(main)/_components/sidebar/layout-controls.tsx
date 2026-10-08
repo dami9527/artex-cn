@@ -23,8 +23,8 @@ import { THEME_PRESET_OPTIONS, type ThemeMode, type ThemePreset } from "@/lib/pr
 import { applyThemePreset } from "@/lib/preferences/theme-utils";
 import { usePreferencesStore } from "@/stores/preferences/preferences-provider";
 
-// 테마 프리셋의 label(theme.ts)은 영문 식별자라 그대로 t() 키로 쓸 수 없다.
-// value 는 저장·적용에 쓰이는 식별자이므로 건드리지 않고 표시 이름만 번역한다.
+// 主题预设的 label(theme.ts) 是英文标识符，不能直接当作 t() 的 key 使用。
+// value 是用于存储与应用的标识符，保持不动，只翻译显示名称。
 const PRESET_LABEL_KEY: Record<string, string> = {
   default: "preset.default",
   brutalist: "preset.brutalist",

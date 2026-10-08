@@ -14,22 +14,21 @@ import (
 
 const maxBatchControlIDs = 100
 
-// 사용자에게 노출되는 작업·의도 제어 오류 문구(한국어화, F3b). 식별자·enum(paused 등)·
-// %w 래핑은 원문 그대로 둔다. applyTaskControlWithCause 의 문구는 단건(controlTask)·
-// 배치(controlTasksBatch) 제어 응답이 주 용도이며, 오케스트레이터 pause 도구
-// (orchestration.go)가 err.Error() 를 재참조할 때도 같은 문구가 쓰인다.
+// 用户可见的任务、意图控制错误文案。标识符、enum(paused 等)、%w 包装保持原文。
+// applyTaskControlWithCause 的文案主要用于单条(controlTask)、批量(controlTasksBatch)
+// 控制响应；编排器的 pause 工具(orchestration.go)重新引用 err.Error() 时也用同一批文案。
 const (
-	errTaskCtrlDeleting      = "작업을 삭제하는 중이라 제어할 수 없습니다"
-	errTaskCtrlTerminalPause = "종료된 작업은 일시정지할 수 없습니다"
-	errTaskCtrlAlreadyPaused = "작업이 이미 일시정지되어 있습니다"
-	errTaskCtrlBatchSizeFmt  = "task_ids 개수는 1~%d개여야 합니다"
+	errTaskCtrlDeleting      = "任务正在删除，无法控制"
+	errTaskCtrlTerminalPause = "终态任务不能执行暂停"
+	errTaskCtrlAlreadyPaused = "任务已经暂停"
+	errTaskCtrlBatchSizeFmt  = "task_ids 数量必须为 1-%d"
 
-	errIntentCtrlInheritedReadonly = "상속된 의도는 읽기 전용이라 제어할 수 없습니다"
-	errIntentCtrlOnlyRunningPause  = "실행 중인 의도만 일시정지할 수 있습니다"
-	errIntentCtrlOnlyPausedResume  = "일시정지된 의도만 재개할 수 있습니다"
-	errIntentCtrlStateConflictFmt  = "%w: 의도가 더 이상 paused 상태가 아닙니다"
-	errIntentCtrlOnlyDeletable     = "대기 중·실행 중·일시정지 상태의 의도만 삭제할 수 있습니다"
-	errIntentCtrlReasonRequired    = "삭제 사유를 입력하세요"
+	errIntentCtrlInheritedReadonly = "继承意图为只读，不能控制"
+	errIntentCtrlOnlyRunningPause  = "仅运行中的意图可以暂停"
+	errIntentCtrlOnlyPausedResume  = "仅已暂停的意图可以恢复"
+	errIntentCtrlStateConflictFmt  = "%w: 意图不再是 paused 状态"
+	errIntentCtrlOnlyDeletable     = "仅待领/运行中/已暂停的意图可以删除"
+	errIntentCtrlReasonRequired    = "请填写删除原因"
 )
 
 type taskControlResult struct {
@@ -163,12 +162,11 @@ func (s *Server) applyTaskControlWithCause(t *Task, action string, pauseCause er
 	default:
 		return out, fmt.Errorf("action must be pause|resume")
 	}
-	log.Printf("[task] #%s %s", t.ID, map[string]string{"pause": "일시정지됨", "resume": "재개됨"}[action])
+	log.Printf("[task] #%s %s", t.ID, map[string]string{"pause": "已暂停", "resume": "已继续"}[action])
 	return out, nil
 }
 
-// intentSummaryOf 는 의도 payload 에서 summary 를 꺼낸다. 하드 삭제로 의도 노드가
-// 사라지기 전에 삭제 알림이 그 값을 보관해 둘 수 있게 한다.
+// intentSummaryOf 取意图 payload 里的 summary，供删除通知在意图节点消失(真删除)前留档。
 func intentSummaryOf(n *db.Node) string {
 	if n == nil {
 		return ""
@@ -220,12 +218,12 @@ func (s *Server) applyIntentControl(ctx context.Context, t *Task, iid int64, act
 		t.Notify()
 		out.State = "open"
 	case "cancel":
-		// 삭제는 두 가지 모드를 지원한다:
-		//   soft(기본값, 소프트 삭제): 의도를 state='deleted' 로 멈추고 삭제 사유를 delete_reason
-		//     필드에 기록하며, 의도 노드와 모든 산출물·혈통(lineage)을 보존하고 그래프에 fact 를 따로 달지 않는다.
-		//   hard(하드 삭제): 해당 의도와 "그 의도만이 지탱하는" 전용 자손 노드를 물리적으로 삭제하며(잎까지
-		//     연쇄), 고아 데이터가 남지 않게 한다. 공유 노드·goal·작업 루트 사실은 보존한다.
-		// 두 모드 모두 cancelled 로 planner 에게 알려(의도 내용 + 삭제 사유), 그에 따라 다시 계획하게 한다.
+		// 删除支持两种模式:
+		//   soft(默认,假删除):意图停到 state='deleted'、删除原因记入 delete_reason 字段,
+		//     保留意图节点与全部产出/血缘,不再在图上另挂 fact。
+		//   hard(真删除):物理删除该意图及"仅由它支撑"的独占子孙节点(级联到叶子),避免留下
+		//     孤立数据;共享节点、goal、任务根事实保留。
+		// 两种模式都用 cancelled 触发告知 planner(意图内容 + 删除原因),让它据此重规划。
 		if node.State != "running" && node.State != "paused" && node.State != "open" {
 			return out, fmt.Errorf(errIntentCtrlOnlyDeletable)
 		}
@@ -247,7 +245,7 @@ func (s *Server) applyIntentControl(ctx context.Context, t *Task, iid int64, act
 			s.cancelWorkerSide(t.ID, t.ExpID, iid)
 			t.NotifyCancelled(iid, summary, reason)
 			out.Deleted = &cleanup
-			out.State = "" // 노드가 삭제됨. 프런트엔드는 Deleted 를 보고 목록에서 제거한다.
+			out.State = "" // 节点已删除,前端据 Deleted 从列表移除
 		} else {
 			if _, err := t.Store.SoftDeleteIntent(iid, reason); err != nil {
 				return out, err

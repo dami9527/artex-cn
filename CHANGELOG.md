@@ -1,70 +1,70 @@
-# 변경 이력
+# 变更历史
 
-한국어 · [English](CHANGELOG.en.md) · [中文(원본·상류)](CHANGELOG.zh.md)
+中文 · [English](CHANGELOG.en.md) · [中文（上游原文）](CHANGELOG.zh.md)
 
-이 문서는 ARTEX 한국어판(이 포크)이 상류 저장소에 더한 변경을 기록합니다. 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 를 참고합니다.
+本文记录 ARTEX 中文版（本 fork）相对上游仓库所做的变更。格式参考 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)。
 
-상류 ARTEX 프로젝트의 버전별 릴리스 이력(0.3.x 이하)과 기여자 목록은 원본 중국어 그대로 [`CHANGELOG.zh.md`](CHANGELOG.zh.md) 에 보존했습니다. 상류 변경과 대조하기 쉽도록 `README.zh.md` 와 같은 방식으로 원문을 그대로 남깁니다. 각 변경의 자세한 내용과 근거는 저장소 커밋 이력에서 확인할 수 있습니다.
+上游 ARTEX 项目的逐版本发布历史（0.3.x 及更早）与贡献者名单，按上游中文原文保留在 [`CHANGELOG.zh.md`](CHANGELOG.zh.md) 中。为便于与上游变更对照，与 `README.zh.md` 采用同样的方式保留原文。各项变更的细节与依据可在仓库提交历史中查看。
 
-## [Unreleased] · 한국어판 변경
+## [Unreleased] · 中文版变更
 
-### Docker 배포 경로 복구
+### Docker 部署路径修复
 
-- **Docker 로 한국어판을 띄울 수 있게 했습니다.** `docker-compose.yml` 의 `artex` 서비스는 `autumn27/artex` 이미지를 받도록 되어 있었는데, 이 이미지는 원작자가 저장소를 닫으면서 Docker Hub 에서 사라졌습니다(현재 pull 하면 `not found`, `autumn27` 네임스페이스에는 `scopesentry` 두 개만 남아 있습니다). 그래서 compose 에 `build:` 를 넣고 이미지 이름을 로컬 태그(`${ARTEX_IMAGE:-artex-ko:local}`)로 바꿔, `docker compose up -d --build` 한 줄로 한국어판 이미지를 직접 빌드해 기동하도록 했습니다. 상류 이미지를 쓰던 경로(`docker compose pull`)는 더 이상 성립하지 않습니다.
-- **`Dockerfile` 이 "실행 전용"이라는 전제를 문서와 스크립트에 반영했습니다.** 이 Dockerfile 은 컨테이너 안에서 컴파일하지 않고 `COPY dist/<arch>/artex` 로 미리 만든 Linux 바이너리를 넣습니다. 따라서 ① 프런트엔드 정적 빌드 → ② `GOOS=linux` 크로스 컴파일 → ③ `docker build` 순서가 필요하고, 앞 단계를 건너뛰면 `COPY` 에서 실패합니다. README 에 ["한국어판 이미지를 직접 빌드하기"](README.md#한국어판-이미지를-직접-빌드하기) 절을 새로 두어 이 순서와 `--platform`·`GOARCH` 일치 주의점, 그리고 `build.sh` 와 Dockerfile 이 기대하는 경로가 다르다는 점(`dist/artex-linux-amd64/` vs `dist/<arch>/`)을 적었습니다.
-- **`install.sh` 의 "① 전부 Docker" 와 `update.sh` 의 Docker 경로가 사라진 이미지를 받던 문제를 고쳤습니다.** 이제 두 스크립트 모두 현재 소스로 이미지를 다시 빌드합니다(`docker compose up -d --build`). 필요한 도구(Go·Node.js/npm·rsync)가 없으면 그 자리에서 안내하고 멈춥니다. `update.sh` 에서 더 이상 쓰이지 않는 `ARTEX_TAG` 입력 단계는 제거했습니다.
-- **`.env.example` 을 실제 동작에 맞췄습니다.** `ARTEX_TAG`(상류 이미지 태그) 대신 `ARTEX_IMAGE`(로컬로 빌드한 이미지 태그)를 두고, 이 저장소가 이미지를 배포하지 않는다는 점을 명시했습니다.
-- **비밀번호를 나중에 바꿔 생기는 기동 실패를 문서화했습니다.** PostgreSQL 공식 이미지는 `POSTGRES_PASSWORD` 를 **볼륨이 비어 있을 때 한 번만** 읽어 `initdb` 에 쓰므로, 스택을 이미 한 번 올린 뒤 `.env` 의 비밀번호를 바꾸면 그 값이 무시되고 artex 만 새 비밀번호로 접속해 `28P01` 인증 실패 → `비정상 종료 (code=1)` 재시작 루프에 빠집니다(포트는 Docker 가 잡고 있어도 컨테이너 안에 리스닝 프로세스가 없어 브라우저는 연결 실패로 보입니다). README(ko·en)에 ["페이지가 안 열릴 때 (Docker)"](README.md#페이지가-안-열릴-때-docker) 절을 두어 로그 확인 방법과 두 가지 복구법(`down -v` 후 재초기화 / `ALTER USER` 로 볼륨 데이터를 지키며 비밀번호 정렬)을 적고, `.env.example` 에도 같은 경고를 넣었습니다. 순서는 항상 **`.env` 먼저 → `docker compose up -d --build`** 입니다.
+- **让 Docker 能起中文版了。** `docker-compose.yml` 的 `artex` 服务原本拉取 `autumn27/artex` 镜像，而该镜像已随原作者关闭仓库从 Docker Hub 消失（现在 pull 会返回 `not found`，`autumn27` 命名空间下只剩两个 `scopesentry`）。于是在 compose 里加上 `build:`，把镜像名改成本地标签（`${ARTEX_IMAGE:-artex-cn:local}`）：**在已备好 `dist/<arch>/artex` 的前提下（即已跑过 `./build-image.sh`）**，一行 `docker compose up -d --build` 就能直接构建并启动中文版镜像；全新 clone 里没有这个二进制，直接跑 compose 会停在 `COPY dist/<arch>/artex` 处失败。原来走上游镜像的路径（`docker compose pull`）已不再成立。
+- **把 `Dockerfile` 是「只负责运行」这一前提落到了文档与脚本里。** 这个 Dockerfile 不在容器内编译，而是用 `COPY dist/<arch>/artex` 放入事先编译好的 Linux 二进制。因此需要 ① 前端静态构建 → ② `GOOS=linux` 交叉编译 → ③ `docker build` 的顺序，跳过前面的步骤就会在 `COPY` 处失败。README 新增了[「自行构建中文版镜像」](README.md#自行构建中文版镜像)一节，写明这个顺序、`--platform` 与 `GOARCH` 需要一致，以及 `build.sh` 与 Dockerfile 期望的路径不同（`dist/artex-linux-amd64/` vs `dist/<arch>/`）。
+- **修好了 `install.sh` 的「① 全部 Docker」与 `update.sh` 的 Docker 路径拉取已消失镜像的问题。** 现在两个脚本都用当前源码重新构建镜像（`docker compose up -d --build`）。缺少所需工具（Go、Node.js/npm、rsync）时会就地提示并停下。`update.sh` 里已不再使用的 `ARTEX_TAG` 输入步骤也已删除。
+- **把 `.env.example` 与实际行为对齐。** 用 `ARTEX_IMAGE`（本地构建出的镜像标签）替换 `ARTEX_TAG`（上游镜像标签），并明确本仓库不发布镜像。
+- **记录下改密码后导致启动失败的问题。** PostgreSQL 官方镜像只在**数据卷为空时读取一次** `POSTGRES_PASSWORD` 并写入 `initdb`，所以在栈已经起过一次之后再改 `.env` 里的密码，这个新值会被忽略，只有 artex 用新密码去连接，陷入 `28P01` 认证失败 → `异常退出（code=1）` 的重启循环（端口虽被 Docker 占着，容器里却没有监听进程，浏览器看到的是连接失败）。README（zh·en）新增[「页面打不开时（Docker）」](README.md#页面打不开时docker)一节，写明查看日志的方法与两种恢复方式（`down -v` 后重新初始化 / 用 `ALTER USER` 保留卷内数据对齐密码），`.env.example` 里也加了同样的警告。顺序始终是 **先 `.env` → 再 `docker compose up -d --build`**。
 
-### UI 언어 선택 (한국어 / 중국어)
+### 界面语言（简体中文）
 
-- **서버가 시드하는 에이전트 표시 이름도 런타임 언어를 따르게 했습니다.** 중국어 UI 로 빌드했는데 대화 페이지의 에이전트 선택기에 `보고서 작성`(reporter)이 한국어로 남아 있었다(사용자 제보). 원인은 이 이름이 **프런트 문구가 아니라 DB 시드 데이터**라는 점이다 — `reporter`·`retester` 의 이름·설명은 시드 시점에 문자열로 DB 에 들어가고(각각 `reporter_agent_seed_v1`·`finding_retester_seed_v1` 플래그로 1회만 실행), 웹 UI 의 locale 은 정적 내보내기 시점에 HTML 에 박혀 서버가 알 수 없다.
-  - 새 런타임 설정 `ARTEX_LOCALE`(기본 `ko`)을 도입해 시드 라벨을 그 값에 맞춘다. `./build-image.sh --locale zh` 를 쓰면 그 값이 컨테이너로 자동 전달되므로 UI 와 서버가 어긋나지 않는다(`.env` 에 한 번만 지정해도 된다).
-  - **이미 설치된 인스턴스**를 위해 `localizeSeedAgentNames` 를 추가했다. 현재 값이 그 에이전트의 **역대 기본값 집합**(중국어 원문·한국어판, 문구가 바뀐 이력 포함)에 있을 때만 — 즉 **사용자가 UI 에서 손대지 않았을 때만** — 새 locale 값으로 맞추고, 사용자가 고친 이름은 보존한다. `seed_agent_names_locale` 플래그로 멱등하게 동작하며, **플래그가 현재 locale 이어도 실제 상태가 어긋나면 다시 맞춘다**.
-  - 구현 중 두 결함을 스스로 잡았다: ① "이미 목표값이면 건너뛴다"를 목표값과 비교해, 목표가 다른 항목의 기본값과 같은 경우(legacy 중국어) 뒤 항목이 통째로 건너뛰어졌다. ② 그 버그가 이름을 못 바꾸고도 플래그를 남겨, 이후 기동이 "이미 완료"로 판단해 영영 고치지 않았다. 지금은 **역대 기본값 집합 매칭 + 상태 재확인**이라 두 문제가 모두 없다. 두 결함은 DB 를 실제로 쓰는 통합 테스트(`TestLocalizeSeedAgentNames`, 하위 6케이스: legacy→ko · zh→ko · ko→zh · 사용자 지정 보존 · 플래그 어긋남 재시도 · 멱등)로 고정했다 — 상수만 보는 정적 테스트로는 잡히지 않는 유형이다.
-- **영어로 남아 있던 화면 문구를 한국어·중국어로 옮겼습니다.** 사용자 제보로 찾은 누락 두 곳이다.
-  - **사이드바 「환경 설정(Preferences)」 패널**(`web/src/app/(main)/_components/sidebar/layout-controls.tsx`): 이 파일만 `next-intl` 을 전혀 쓰지 않아 제목·설명·11개 라벨·토글 12개·`aria-label` 이 전부 하드코딩 영어였다(테마 프리셋·글꼴·테마 모드·페이지 레이아웃·상단 바 동작·사이드바 스타일·접힘 방식·기본값 복원). `layoutControls` 네임스페이스를 새로 두고 전부 `t()` 로 옮겼다. 테마 프리셋의 `label`(theme.ts)은 영문 식별자라 값은 그대로 두고 표시 이름만 매핑했고, 글꼴 이름(Geist·Roboto 등)은 고유명사라 번역하지 않는다.
-  - **404 페이지**: 내보낸 `404.html` 이 Next 기본 영어 페이지(`Page not found.`)였다. 원인은 두 가지였다 — ① App Router 의 `not-found.tsx` 는 `notFound()` 용 내부 라우트만 만들 뿐 정적 내보내기의 최상위 404 에는 쓰이지 않는다(Next 16 은 `global-not-found.tsx` + `experimental.globalNotFound` 가 필요). ② `zh.json` 의 `notFound` 세 키가 **영어 값**으로 남아 있었다(중국어 원문을 옮길 때 누락). `global-not-found.tsx`(전체 HTML 문서를 직접 반환)와 그 본문 컴포넌트를 추가하고, `zh.json` 의 `notFound`·`search.empty` 를 중국어로 채웠다. 404 는 루트 레이아웃을 상속하지 않으므로 `NextIntlClientProvider` 에 메시지를 직접 넘긴다(넘기지 않으면 정적 내보내기에서 문구를 해석하지 못해 다시 영어 페이지가 나간다).
-- **`scripts/check-web-cjk.py` 에 카탈로그 검사를 추가했습니다.** 위 ②처럼 **영어로 남은 값**은 한자 검사로 절대 걸리지 않아 조용히 새어 나갔다. 이제 `ko.json` 을 기준선으로 삼아 "ko 는 한국어인데 zh 는 영어" 인 값을 보고한다(양쪽 모두 영문을 쓰는 기술 용어는 `ALLOWED_ZH_LATIN` 에 사유와 함께 두어 통과시킨다 — Agent·Skill·Search·App·input/cache/output 등 7개). 빌드 산출물이 아니라 소스를 보므로 locale 과 무관하게 돌고, zh 빌드에서도 검사한다.
-- **`build-image.sh` 를 추가해 UI 언어 전환을 한 명령으로 만들었습니다.** 앞선 문서·스크립트는 "빌드 경로가 `NEXT_PUBLIC_LOCALE` 을 넘기게" 하는 데까지만 손댔는데, **`docker compose up -d --build` 앞에 이 변수를 붙여도 언어가 바뀌지 않는다**는 사실을 놓쳤습니다. 이 프로젝트의 `Dockerfile` 은 컨테이너 안에서 프런트엔드를 컴파일하지 않고(`COPY dist/<arch>/artex` 로 미리 만든 바이너리를 넣음) 그 바이너리에 `web/out` 이 embed 되어 있어서, compose 는 그 복사를 `CACHED` 로 끝낼 뿐입니다. 즉 UI 언어는 **호스트에서 `next build` 를 돌릴 때** 정해집니다. `build-image.sh` 가 ① 프런트엔드 → ② 내장 디렉터리 동기화 → ③ `GOOS=linux` 컴파일 → ④ `docker compose up -d --build` 를 대신 하고, `dist/<arch>/.locale` 에 마지막 빌드 언어를 기록해 **언어가 바뀌었을 때만 다시 빌드**합니다(같으면 재사용, `--force` 로 강제, `--no-up` 으로 기동 생략). 사용법은 `./build-image.sh --locale zh` 처럼 씁니다.
-- **`install.sh`·`update.sh` 의 빌드 로직을 `build-image.sh` 로 위임했습니다.** 같은 로직을 두 벌 두면 UI 언어가 조용히 어긋나므로(실제로 그렇게 어긋났습니다) 한 곳에 모으고, 두 스크립트는 호출만 합니다.
-- **`NEXT_PUBLIC_LOCALE` 로 UI 언어를 고를 수 있게 했습니다(기본 `ko` = 한국어판).** `web/src/i18n/config.ts` 에는 이미 `LOCALES = ["ko","zh"]`·`DEFAULT_LOCALE = "ko"`·`resolveLocale()` 이 있었지만, 정작 **빌드 경로 어디에서도 `NEXT_PUBLIC_LOCALE` 을 넘기지 않아** 중국어 UI 를 만들 방법이 없었습니다(항상 기본값으로 떨어짐). locale 은 정적 내보내기 시점에 HTML 에 박히므로 런타임 전환이 아니라 빌드 시점 선택입니다.
-- **`scripts/check-web-cjk.py` 를 locale 인지로 바꿨습니다.** 이 게이트는 "사용자 노출 HTML 에 한자 0" 을 강제하는데, 의도한 중국어 빌드까지 한자 누출로 잡으면 머지 게이트가 막힙니다. 이제 `NEXT_PUBLIC_LOCALE=zh` 가 설정돼 있으면 검사를 건너뛰고(종료 0), 값이 없거나 `ko` 이면 지금까지처럼 한자 0 을 강제합니다. 실패 메시지에도 "의도한 중국어 빌드라면 `NEXT_PUBLIC_LOCALE=zh` 를 설정하라" 는 안내를 넣었습니다. 스크립트가 `LOCALES`·`DEFAULT_LOCALE` 을 복제해 쓰므로, `config.ts` 의 값과 어긋나면 그 자리에서 오류로 알립니다(게이트가 엉뚱한 기준으로 도는 것을 막습니다).
-- **바뀌는 것은 화면 문구뿐임을 문서에 명시했습니다.** 에이전트가 쓰는 취약점 리포트·사실 요약·최종 요약·채팅 응답의 언어는 Go 코드(`agent/prompt.go` 의 `langDirective()`)가 한국어로 고정하며 이 값과 무관합니다. 그 출력까지 중국어로 바꾸려면 `langDirective()` 와 그 계약을 검증하는 `agent/prompt_test.go` 를 함께 고쳐야 하고, 이는 이 포크의 한국어화 설계를 되돌리는 변경입니다.
+- **服务端播种的 agent 显示名也跟随运行时语言了。** 曾经出现界面与播种名不一致：界面按简体中文构建，对话页的 agent 选择器里 reporter 却仍留着另一种语言的历史遗留名称（用户反馈）。原因是这个名称**不是前端文案，而是数据库播种数据**——`reporter`、`retester` 的名称与描述在播种时以字符串写入数据库（分别由 `reporter_agent_seed_v1`、`finding_retester_seed_v1` 标记只执行一次），而 Web UI 的 locale 在静态导出时就写进了 HTML，服务端无从得知。
+  - 新增运行时配置 `ARTEX_LOCALE`（取值只有 `zh`，未设置或不支持的值都回落到 `zh`），用它对齐播种标签。部署脚本 `build-image.sh` 会把构建时选定的语言自动传进容器，因此界面与服务端不会错位（`.env` 里写一次即可）。
+  - 为**已经安装好的实例**补了 `localizeSeedAgentNames`。只有当当前值落在该 agent 的**历代默认值集合**（上游中文原文与历史本地化版本，含文案变更过的历史值）里时——也就是**用户没有在界面里改过**时——才对齐到新的 locale 值，用户改过的名字保持不变。用 `seed_agent_names_locale` 标记实现幂等，并且**标记已经是当前 locale、实际状态却对不上时仍会重新对齐**。
+  - 实现过程中自己抓出了两个缺陷：① 判断「已经是目标值就跳过」时拿目标值去比较，导致目标值恰好等于另一项的默认值（历史遗留中文）时，后面的项被整段跳过。② 这个缺陷没能改掉名字却留下了标记，后续启动据此认为「已经完成」，于是永远修不好。现在用**历代默认值集合匹配 + 状态复查**，两个问题都不存在了。这两个缺陷由真正连数据库的集成测试（`TestLocalizeSeedAgentNames`，四个子用例：把历史描述对齐到当前中文标签、保留用户改过的名字与描述、标志已是当前 locale 但状态不一致时重新对齐、标志与状态都一致时不做任何改动）固定下来——只看常量的静态测试抓不到这一类问题。本仓库固定为中文，不再有跨语言切换，因此这里只断言最终名称与描述是中文且不含谚文。
+- **把仍以英文残留的界面文案改成了中文。** 这是用户反馈后找到的两处遗漏。
+  - **侧边栏「环境设置（Preferences）」面板**（`web/src/app/(main)/_components/sidebar/layout-controls.tsx`）：只有这个文件完全没有用 `next-intl`，标题、说明、8 个标签、12 个开关与 `aria-label` 全是硬编码英文（主题预设、字体、主题模式、页面布局、顶栏行为、侧边栏样式、折叠方式、恢复默认值）。新增 `layoutControls` 命名空间，全部改用 `t()`。主题预设的 `label`（theme.ts）是英文标识符，值保持不变，只映射显示名称；字体名（Geist、Roboto 等）是专有名词，不翻译。
+  - **404 页面**：导出的 `404.html` 是 Next 默认的英文页面（`Page not found.`）。原因有两点——① App Router 的 `not-found.tsx` 只生成供 `notFound()` 使用的内部路由，不会用于静态导出的顶层 404（Next 16 需要 `global-not-found.tsx` + `experimental.globalNotFound`）。② `zh.json` 的 `notFound` 三个键仍是**英文值**（从上游中文原文迁移时遗漏）。于是新增 `global-not-found.tsx`（直接返回完整 HTML 文档）及其正文组件，并把 `zh.json` 的 `notFound`、`search.empty` 填成中文。404 不继承根布局，所以要把消息直接传给 `NextIntlClientProvider`（不传的话静态导出时解析不出文案，又会输出英文页面）。
+- **新增 `scripts/check-no-korean.py`，把「不允许韩文残留」变成可执行的门禁。** 像上面 ② 那样遗留下来的**非中文值**，靠人工比对是抓不到的，只会悄悄漏出去。这个脚本扫描工作树下的文本文件（跳过 `.git`、`node_modules` 等依赖目录、构建产物与二进制文件），逐行匹配谚文，只要命中就以非零码失败并列出文件、行号与命中内容。它看的是源码而不是构建产物，因此与构建语言无关。
+- **新增 `build-image.sh`，把界面语言切换做成一条命令。** 之前的文档与脚本只做到「让构建路径把 `NEXT_PUBLIC_LOCALE` 传下去」，却漏掉了**在 `docker compose up -d --build` 前面加这个变量并不会改变语言**这一事实。本项目的 `Dockerfile` 不在容器里编译前端（用 `COPY dist/<arch>/artex` 放入事先构建好的二进制），而那份二进制里 embed 了 `web/out`，所以 compose 只会把这次拷贝以 `CACHED` 结束。也就是说界面语言是**在宿主机上跑 `next build` 时**定下来的。`build-image.sh` 代替人工执行 ① 前端 → ② 同步内嵌目录 → ③ `GOOS=linux` 编译 → ④ `docker compose up -d --build`，并把最后一次构建的语言记在 `dist/<arch>/.locale` 里，**只在语言变化时重新构建**（相同则复用，`--force` 强制重建，`--no-up` 跳过启动）。用 `./build-image.sh` 即可。
+- **把 `install.sh`、`update.sh` 的构建逻辑委托给 `build-image.sh`。** 同一套逻辑写两份会让界面语言悄悄错位（实际就错位过），所以集中到一处，两个脚本只负责调用。
+- **用 `NEXT_PUBLIC_LOCALE` 选择界面语言。** `web/src/i18n/config.ts` 里本来就有 `LOCALES`、`DEFAULT_LOCALE`、`resolveLocale()`，但**构建路径里任何地方都没有传 `NEXT_PUBLIC_LOCALE`**，所以做不出中文界面（总是落到默认值）。locale 在静态导出时就写进 HTML，因此这不是运行时切换，而是构建期选择。本仓库最终把界面固定为简体中文：`LOCALES = ["zh"]`、`DEFAULT_LOCALE = "zh"`，取值不是 `zh` 时回落到 `zh`。
+- **`scripts/check-no-korean.py` 的判定范围与跳过规则。** 它只查谚文——谚文音节、谚文字母、谚文兼容字母、谚文扩展区 B，不查汉字也不查假名：中文文案本来就全是汉字，查汉字等于自我误报；假名属于日文，不在清理目标内。同时跳过版本控制与依赖目录（`.git`、`node_modules`、`.next`、`out`、`dist`）、构建产物（`server/webui/dist`、`web/out`）与二进制文件（无法按 UTF-8 解码的一律跳过）。需要豁免的文件写进脚本的忽略清单，当前为空：仓库里不应该有任何需要豁免的文件。
+- **在文档里写明：变化的只有界面文案。** agent 产出的漏洞报告、事实摘要、最终总结与聊天回复的语言由 Go 代码（`agent/prompt.go` 的 `langDirective()`）固定为简体中文，与上面的值无关。要改输出语言，就得同时改 `langDirective()` 与验证该契约的 `agent/prompt_test.go`，而这等于回退本 fork 的中文化设计。
 
-### 상류 동기화 (v0.3.15)
+### 上游同步（v0.3.15）
 
-포크 지점(상류 `d003372`, 2026-10-03) 이후 상류가 올린 커밋 세 건을 이 저장소로 가져왔습니다. 셋 다 포크 이후 시점의 상류 변경이라 병합 충돌은 한국어화가 이미 손댄 파일에만 국한됐고, 그 지점은 아래처럼 한국어판 규약에 맞춰 해소했습니다.
+把 fork 点（上游 `d003372`，2026-10-03）之后上游新增的三个提交带进了本仓库。三者都是 fork 之后的上游变更，所以合并冲突只局限在本仓库已经改过的文件里，这些冲突点按下文所述的中文版约定解决。
 
-- **모델 폴백 승인의 token 사용량을 따로 계량합니다([`db/llm_usage.go`](db/llm_usage.go) · `server/intercept.go`).** 승인 호출에는 지금까지 독립된 계량 귀속이 없어 얼마를 썼는지 알 수 없었습니다. 이제 `worker=judge` 로 따로 집계하고, 「시스템 → 가로채기」의 「모델 폴백 승인」 스위치 아래에 사용량 카드(호출 횟수·입력·출력·캐시 읽기·쓰기, 최근 30일 일별 막대)를 둡니다. 상류는 이 카드의 문구를 중국어로 하드코딩했지만, 이 저장소는 `web/messages/ko.json`·`zh.json` 에 `interceptPage.judgeUsage.*` 키를 새로 두어 기존 화면과 같은 i18n 경로로 옮겼습니다(`zh.json` 에는 대조용 중국어 원문을 함께 넣었습니다).
-- **인증 초기화의 fail-open 을 막았습니다(상류 `a951e4a`, `server/auth.go` · `db/settings.go`).** 비밀번호 관련 읽기가 실패했을 때 이를 「설정되지 않음」으로 취급하면 인증되지 않은 요청이 이미 설정된 관리자 비밀번호를 덮어쓸 수 있었습니다. 이제 읽기 실패는 503 으로 돌려주고, 최초 1회만 설정되도록 upsert 대신 기본 키 제약(`INSERT ... ON CONFLICT DO NOTHING`)에 보장을 두며, 비밀번호 길이 검증(8자 이상, bcrypt 상한 72바이트)을 서버에서 강제합니다. 한국어판은 새 오류 문구와 검증 메시지를 한국어로 옮기고, setup 화면의 「확인 불가」 상태 문구를 `auth.setup.*` 키로 추가했습니다.
-- **상류 `v0.3.15` 의 변경 이력을 [`CHANGELOG.zh.md`](CHANGELOG.zh.md) 에 반영했습니다.** 상류의 정본 커밋(定版)은 이 저장소의 분리된 변경 이력 구조와 맞지 않아 그대로 cherry-pick 하지 않고, `[Unreleased]` 에 있던 내용을 `## [0.3.15] - 2026-10-07` 로 정리하는 방식으로 원문을 옮겼습니다.
+- **单独计量模型回退审批的 token 用量（[`db/llm_usage.go`](db/llm_usage.go) · `server/intercept.go`）。** 审批调用此前没有独立的计量归属，看不出花了多少。现在用 `worker=judge` 单独统计，并在「系统 → 拦截」的「模型回退审批」开关下方放一张用量卡片（调用次数、输入、输出、缓存读、缓存写，最近 30 天按日柱状图）。上游把这张卡片的文案硬编码成了中文；本仓库把新文案抽成 `web/messages/zh.json` 的 `interceptPage.judgeUsage.*` 键，走与既有界面相同的 i18n 路径。
+- **堵住了认证初始化的 fail-open（上游 `a951e4a`，`server/auth.go` · `db/settings.go`）。** 读取密码相关配置失败时若当成「尚未设置」处理，未认证的请求就能覆盖已经设置好的管理员密码。现在读失败返回 503，把「只能设置一次」的保证放在主键约束（`INSERT ... ON CONFLICT DO NOTHING`）上而不是 upsert，并在服务端强制密码长度校验（8 位以上，bcrypt 上限 72 字节）。中文版把新的错误文案与校验消息译成中文，并把 setup 界面的「无法确认」状态文案加为 `auth.setup.*` 键。
+- **把上游 `v0.3.15` 的变更历史并入了 [`CHANGELOG.zh.md`](CHANGELOG.zh.md)。** 上游的定版提交与本仓库分离的变更历史结构不匹配，所以没有直接 cherry-pick，而是把 `[Unreleased]` 里的内容整理成 `## [0.3.15] - 2026-10-07` 的方式搬运原文。
 
-### 현지화 (i18n)
+### 本地化（i18n）
 
-- **사용자 노출 출력을 한국어로 강제했습니다.** 벤치마크된 에이전트의 행동 지침 본문(두뇌)은 성능 보존을 위해 원문 그대로 두고, 코드 고정 세그먼트(`langDirective`)로 사용자에게 보이는 산출물(취약점 리포트, 사실 요약, 최종 요약, 채팅 응답)만 한국어로 작성하도록 지시합니다. 명령·페이로드·코드·로그 원문은 원본을 보존합니다.
-- **웹 UI 를 한국어로 옮겼습니다.** Next App Router 에 `next-intl` 을 도입하고 문자열을 `web/messages/ko.json` 과 `web/messages/zh.json` 으로 분리했습니다. 원본 중국어는 `zh.json` 에 보존해 상류 업데이트와 대조합니다. 대시보드·취약점·대화·알림 발송·가로채기·LLM 설정 등 화면 문자열을 한국어로 옮겼습니다.
-- **서버 API 의 사용자 노출 오류·응답을 한국어로 옮겼습니다.** 브라우저로 돌아가는 HTTP 오류·응답 문구를 한국어로 교체했습니다. 단 에이전트 두뇌의 입력으로 되먹여지는 문구는 벤치마크 드리프트를 막기 위해 원문을 유지했고, 그 판정 근거는 저장소 작업 문서에 기록했습니다.
-- **문서를 한국어로 정비했습니다.** 한국어 `README.md` 를 만들고 영어 `README.en.md` 를 함께 두었으며, 원본 중국어는 `README.zh.md` 로 보존했습니다.
+- **强制用户可见输出为简体中文。** 经过基准测试的 agent 行为指令正文（大脑）为保留性能而原样保留，用代码固定段（`langDirective`）要求只把用户可见的产出（漏洞报告、事实摘要、最终总结、聊天回复）写成简体中文。命令、payload、代码、日志原文保持原样。
+- **把 Web UI 中文化。** 在 Next App Router 里引入 `next-intl`，把字符串集中到 `web/messages/zh.json`。仪表盘、漏洞、对话、通知发送、拦截、LLM 设置等界面文案都改成了简体中文。
+- **把服务端 API 的用户可见错误与响应中文化。** 返回浏览器的 HTTP 错误与响应文案改成简体中文。但回喂给 agent 大脑的文案为防基准漂移而保留原文，判定依据记录在仓库工作文档里。
+- **整理中文文档。** 撰写简体中文 `README.md`，同时保留英文 `README.en.md`，上游中文原文保留在 `README.zh.md`。
 
-### 방어·탐지 자료
+### 防御与检测资料
 
-- **방어·탐지 가이드를 추가했습니다.** 자율 AI 공격이 기존 스캐너와 무엇이 다른가, 방어자가 관측할 수 있는 지문(IoC), 진입점과 하드닝, 탐지 규칙, 사고 대응을 정리한 한국어 가이드([`docs/defense-ko.md`](docs/defense-ko.md))와 같은 내용의 영어판([`docs/defense-en.md`](docs/defense-en.md))을 두었습니다.
-- **배포용 탐지 규칙을 제공합니다.** 가이드의 지문을 바로 쓸 수 있는 규칙으로 옮겼습니다. 호스트·로그 계층은 [Sigma](https://sigmahq.io) 원자·상관 규칙([`detections/sigma/`](detections/sigma/)), 네트워크 계층은 enrich 프로브와 norma SDK WebFetch 의 User-Agent 를 겨냥한 [Suricata](https://suricata.io) 규칙([`detections/suricata/`](detections/suricata/))으로 담았습니다.
-- **ATT&CK 커버리지를 가시화했습니다.** 규칙이 태깅하는 기법을 MITRE ATT&CK Navigator 레이어([`detections/attack/`](detections/attack/))로 정리했습니다.
-- **기계 판독 침해지표(IoC)를 표준 형식으로 제공합니다.** ARTEX 가 내보내는 고유 지문을 한 파일로 모은 CSV([`detections/indicators/artex_indicators.csv`](detections/indicators/artex_indicators.csv))와, 같은 지표를 위협 인텔리전스 플랫폼에 바로 가져올 수 있는 MISP 이벤트([`detections/indicators/artex_indicators.misp.json`](detections/indicators/artex_indicators.misp.json))로 담았습니다. 규칙이 받쳐 주는 지표는 `to_ids` 로, 호스트 포렌식 포트는 분류용 단서로 구분해 표기합니다.
-- **재현 가능한 탐지 테스트를 붙였습니다.** 규칙을 실제로 돌려 증명하는 테스트 여덟 종(Sigma 구조·컴파일 검증, Sigma 실시간 이벤트 매칭, 백엔드 이식성, SigmaHQ 관례 린트, Suricata 로드·발화, ATT&CK 레이어 정합, 지표-소스 일치, MISP 내보내기 ↔ CSV 동기화)과 이를 한 번에 돌리는 일괄 러너·pre-commit 예시를 추가하고 CI 머지 게이트로 연결했습니다. Sigma 실시간 이벤트 매칭은 규칙이 컴파일될 뿐 아니라 악성 샘플 이벤트에는 실제로 발화하고 정상 이벤트에는 침묵하는지까지 원자·상관 규칙 모두에서 확인합니다.
+- **新增防御与检测指南。** 整理了自主 AI 攻击与既有扫描器的差异、防御者可观测的指纹（IoC）、入口与加固、检测规则、事件响应的中文指南（[`docs/defense-zh.md`](docs/defense-zh.md)），以及内容相同的英文版（[`docs/defense-en.md`](docs/defense-en.md)）。
+- **提供可部署的检测规则。** 把指南里的指纹变成可直接使用的规则：主机与日志层用 [Sigma](https://sigmahq.io) 原子规则与关联规则（[`detections/sigma/`](detections/sigma/)），网络层用针对探测器 User-Agent 与 norma SDK WebFetch User-Agent 的 [Suricata](https://suricata.io) 规则（[`detections/suricata/`](detections/suricata/)）。
+- **把 ATT&CK 覆盖率可视化。** 将规则标注的技法整理成 MITRE ATT&CK Navigator 图层（[`detections/attack/`](detections/attack/)）。
+- **以标准格式提供机器可读的入侵指标（IoC）。** 把 ARTEX 输出的独有指纹汇总成一个 CSV（[`detections/indicators/artex_indicators.csv`](detections/indicators/artex_indicators.csv)），并做成可直接导入威胁情报平台的 MISP 事件（[`detections/indicators/artex_indicators.misp.json`](detections/indicators/artex_indicators.misp.json)）。有规则支撑的指标标为 `to_ids`，主机取证端口则作为分类线索区分标注。
+- **附上可复现的检测测试。** 加入八种真正跑规则来证明的测试（Sigma 结构与编译校验、Sigma 实时事件匹配、后端可移植性、SigmaHQ 惯例检查、Suricata 加载与触发、ATT&CK 图层一致性、指标与源码一致性、MISP 导出 ↔ CSV 同步），以及一次跑完它们的批处理运行器与 pre-commit 示例，并接入 CI 合并门禁。Sigma 实时事件匹配不仅确认规则能编译，还要确认它对恶意样本事件真的触发、对正常事件保持静默。
 
-### 저장소 정비
+### 仓库整理
 
-- **보안·오남용 경고와 국내법 고지를 넣었습니다.** README 최상단에 사용 범위, 정보통신망법·개인정보보호법 고지, 오남용 금지 경고를 추가했습니다.
-- **한국어 UI 스크린샷으로 화면 미리 보기를 교체했습니다.**
-- **메인테이너 런북과 기여 가이드를 정비했습니다.** 상류 동기화·번역 드리프트를 막기 위한 런북([`MAINTAINING.md`](MAINTAINING.md))과 탐지 규칙 기여 계약([`CONTRIBUTING.md`](CONTRIBUTING.md))을 두었습니다. 런북에는 릴리스 발행 파이프라인의 빌드 전제와, 태그 없이 로컬에서 그 전제를 검증하는 절차도 함께 정리했습니다.
-- **푸시·PR 머지 게이트 CI 를 추가했습니다.** 상류 저장소는 태그 릴리스에서만 CI 가 돌았지만, 이 포크는 모든 푸시와 PR 에서 Go 빌드·정적 분석(`go vet`)·단위 테스트([`ci.yml`](.github/workflows/ci.yml)), 한국어 UI 정적 빌드([`web.yml`](.github/workflows/web.yml)), 문서의 저장소 내부 링크·이미지 참조 무결성([`docs.yml`](.github/workflows/docs.yml))을 돌려, 한국어화 과정에서 생긴 회귀를 머지 전에 잡습니다. 데이터베이스가 있어야 하는 통합 테스트는 패키지마다 격리된 PostgreSQL 서비스로 함께 검증합니다. 문서 링크 검사는 외부 네트워크에 의존하지 않는 결정론적 스크립트([`scripts/check-doc-links.py`](scripts/check-doc-links.py))로 돌려, 다국어 문서가 서로를 가리키는 많은 상대 링크와 화면 미리 보기 이미지가 깨진 채 머지되는 것을 막습니다. 문서 앵커(`#헤딩`) 링크도 GitHub 과 같은 slug 규칙으로 헤딩과 대조해, 헤딩 글자가 바뀌어 조용히 끊긴 목차·상호 참조 링크를 함께 잡습니다. 탐지 규칙 스위트는 위 '방어·탐지 자료' 절에서 설명한 머지 게이트가 담당합니다.
-- **외부 링크 생존을 주기적으로 점검합니다.** 방어 가이드가 가리키는 사고 신고 창구·표준 참조 같은 외부 링크는 원격 서버 상태에 의존해 flaky 하므로 머지 게이트에서 빼고, 비차단 워크플로([`external-links`](.github/workflows/external-links.yml))가 매주 월요일과 수동 실행으로 브라우저 User-Agent·GET·리다이렉트 추적 점검([`scripts/check-external-links.py`](scripts/check-external-links.py))을 돌립니다. 호스트는 살아 있는데 확인 방법만 막힌 경우(봇 차단·속도 제한)와 우리가 고칠 수 없는 상류 상속 죽은 링크(allowlist)는 실패로 치지 않아, 우리 문서가 큐레이션한 외부 링크가 새로 깨질 때만 빨갛게 드러냅니다.
-- **기여·거버넌스 인프라를 갖췄습니다.** 버그·기능·번역 이슈 템플릿([`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/))과 풀 리퀘스트 템플릿([`PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md)), 보안 취약점 신고 정책([`SECURITY.md`](SECURITY.md)), 행동 강령([`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md))을 두어, 외부 기여자가 이슈·PR·보안 신고를 일관된 양식으로 제출하도록 했습니다.
-- **해외 기여자를 위한 영어 문서 레이어를 완성했습니다.** 이 저장소는 한국어가 주 언어이지만, 한국어를 읽지 못하는 기여자·보안 연구자·방어자가 같은 정보에 도달하도록 핵심 문서의 영어판을 함께 두었습니다. 영어 `README.en.md`·방어 가이드([`docs/defense-en.md`](docs/defense-en.md))에 더해, 변경 이력([`CHANGELOG.en.md`](CHANGELOG.en.md)), 보안 신고 정책([`SECURITY.en.md`](SECURITY.en.md)), 행동 강령([`CODE_OF_CONDUCT.en.md`](CODE_OF_CONDUCT.en.md)), 기여 가이드([`CONTRIBUTING.en.md`](CONTRIBUTING.en.md)), 메인테이너 런북([`MAINTAINING.en.md`](MAINTAINING.en.md)), 트래픽 증거 설계 문서([`docs/finding-traffic-evidence-en.md`](docs/finding-traffic-evidence-en.md)), 그리고 버그·기능·번역 이슈 템플릿의 영어판을 갖췄습니다. 한국어판과 영어판은 머리말에서 서로를 가리켜, 어느 언어로 들어와도 반대쪽으로 이동할 수 있습니다. (풀 리퀘스트 템플릿은 현재 한국어판만 제공합니다.)
+- **加入安全与滥用警告以及合规告知。** 在 README 顶部加入使用范围、《网络安全法》《数据安全法》《个人信息保护法》的告知与禁止滥用警告。
+- **把界面预览截图换成中文界面截图。**
+- **整理维护者手册与贡献指南。** 放入防止上游同步漂移与翻译漂移的手册（[`MAINTAINING.md`](MAINTAINING.md)）与检测规则贡献契约（[`CONTRIBUTING.md`](CONTRIBUTING.md)）。手册里还整理了发布流水线的构建前提，以及不打标签在本地验证这些前提的流程。
+- **加入推送与 PR 的合并门禁 CI。** 上游仓库只在打标签发布时跑 CI，而本 fork 在每次推送与 PR 上运行 Go 构建、静态分析（`go vet`）、单元测试（[`ci.yml`](.github/workflows/ci.yml)）、中文界面静态构建（[`web.yml`](.github/workflows/web.yml)）与文档内部链接及图片引用的完整性检查（[`docs.yml`](.github/workflows/docs.yml)），把中文化过程中产生的回归挡在合并之前。需要数据库的集成测试按包用隔离的 PostgreSQL 服务一并验证。文档链接检查用不依赖外部网络的确定性脚本（[`scripts/check-doc-links.py`](scripts/check-doc-links.py)）运行，防止多语言文档之间大量相对链接与界面预览图在断开的状态下被合并。文档锚点（`#标题`）链接也按与 GitHub 相同的 slug 规则与标题比对，一并抓住因标题改动而悄悄失效的目录与交叉引用。检测规则套件由上面「防御与检测资料」一节说明的合并门禁负责。
+- **定期检查外部链接存活。** 防御指南指向的事故报告渠道、标准参考等外部链接依赖远端服务器状态、容易 flaky，所以从合并门禁中拿掉，改用非阻塞工作流（[`external-links`](.github/workflows/external-links.yml)）在每周一与手动触发时按浏览器 User-Agent、GET、跟随重定向的方式检查（[`scripts/check-external-links.py`](scripts/check-external-links.py)）。主机活着、只是确认方式被挡（机器人拦截、速率限制）以及我们修不了的上游继承死链（allowlist）都不算失败，因此只有我们文档收录的外部链接新出现失效时才会报红。
+- **搭好贡献与治理基础设施。** 放入缺陷、功能、翻译议题模板（[`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/)）与 Pull Request 模板（[`PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md)）、安全漏洞报告政策（[`SECURITY.md`](SECURITY.md)）、行为准则（[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)），让外部贡献者以一致的格式提交议题、PR 与安全报告。
+- **补齐面向海外贡献者的英文文档层。** 本仓库以简体中文为主语言，但为了让读不懂中文的贡献者、安全研究者与防御者也能获得同样的信息，关键文档一并提供英文版：英文 `README.en.md`、防御指南（[`docs/defense-en.md`](docs/defense-en.md)），以及变更历史（[`CHANGELOG.en.md`](CHANGELOG.en.md)）、安全报告政策（[`SECURITY.en.md`](SECURITY.en.md)）、行为准则（[`CODE_OF_CONDUCT.en.md`](CODE_OF_CONDUCT.en.md)）、贡献指南（[`CONTRIBUTING.en.md`](CONTRIBUTING.en.md)）、维护者手册（[`MAINTAINING.en.md`](MAINTAINING.en.md)）、流量证据设计文档（[`docs/finding-traffic-evidence-en.md`](docs/finding-traffic-evidence-en.md)）与缺陷、功能、翻译议题模板的英文版。中文版与英文版在开头互相指路，从任一语言进入都能切到另一边。（Pull Request 模板目前只提供中文版。）
 
 ---
 
-상류 ARTEX 프로젝트의 버전별 릴리스 이력과 기여자 목록은 [`CHANGELOG.zh.md`](CHANGELOG.zh.md) 에서 원문 그대로 볼 수 있습니다.
+上游 ARTEX 项目的逐版本发布历史与贡献者名单，可在 [`CHANGELOG.zh.md`](CHANGELOG.zh.md) 中原样查看。

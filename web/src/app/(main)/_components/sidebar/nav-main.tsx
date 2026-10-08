@@ -87,8 +87,8 @@ function hasSubItems(item: NavMainItem): item is NavMainParentItem {
   return Boolean(item.subItems?.length);
 }
 
-// 그룹 번호 → nav.group.* 메시지 키. 사이드바 라벨은 데이터(sidebar-items.ts)가 아니라
-// 렌더 시점에 useTranslations 로 번역한다. 매핑이 없는 그룹은 원문 label 로 떨어진다.
+// 分组编号 → nav.group.* 消息 key。侧边栏标签不由数据(sidebar-items.ts)提供，
+// 而是在渲染时用 useTranslations 翻译。没有映射的分组回退到原始 label。
 const GROUP_MESSAGE_KEY: Record<number, string> = { 1: "function", 2: "system" };
 
 export function NavMain({ items }: NavMainProps) {

@@ -6,17 +6,16 @@ import (
 	"unicode"
 )
 
-// A2: wrap-up / settlement 프롬프트 한국어화.
+// A2: wrap-up / settlement 提示词中文化。
 //
-// 이 상수들은 run 또는 task 가 단계/시간 예산에 걸려 종료될 때 settlement 단계에서
-// 주입되어, 사용자에게 그대로 노출되는 최종 요약을 직접 지시한다. 따라서 (1) 한국어로
-// 작성되어야 하고, (2) 중국어(CJK 한자) 잔재가 없어야 하며, (3) 도구 이름과
-// "한 문장 순수 텍스트" 같은 지시 의미가 보존되어야 한다.
+// 这些常量在 run 或 task 触及步数/时间预算而结束时，于 settlement 阶段注入，
+// 直接指示最终总结并原样展示给用户。因此它们 (1) 必须用简体中文撰写，
+// (2) 不得残留谚文，(3) 必须保留工具名与「一句话纯文本」这类指示语义。
 //
-// DB 시드는 wrapup_prompt / task_timeout_wrapup_prompt 를 빈 문자열로 두고(db/db.go 의
-// builtin 에이전트 INSERT 는 이 컬럼을 채우지 않는다), 비어 있으면 이 상수로 떨어진다.
-// 즉 이 상수들이 wrap-up 문구의 유일한 원천이다.
-func TestWrapupPromptsLocalizedToKorean(t *testing.T) {
+// DB 种子把 wrapup_prompt / task_timeout_wrapup_prompt 留空（db/db.go 的内置
+// agent INSERT 不填这两列），为空时回落到这些常量。也就是说这些常量是
+// wrap-up 文案的唯一来源。
+func TestWrapupPromptsLocalizedToChinese(t *testing.T) {
 	all := map[string]string{
 		"settleWrapUpPrompt":        settleWrapUpPrompt,
 		"plannerWrapUpDefault":      plannerWrapUpDefault,
@@ -36,67 +35,67 @@ func TestWrapupPromptsLocalizedToKorean(t *testing.T) {
 	}
 
 	for name, p := range all {
-		if !hasScript(p, unicode.Hangul) {
-			t.Errorf("%s: 한글이 전혀 없어 한국어화되지 않았다", name)
+		if !hasScript(p, unicode.Han) {
+			t.Errorf("%s: 一个汉字都没有，未中文化", name)
 		}
-		// 도구 이름은 ASCII, 한글은 Hangul 블록이라 번역이 끝났다면 CJK 한자가 하나도 없어야 한다.
-		if hasScript(p, unicode.Han) {
-			t.Errorf("%s: CJK 한자 잔재가 남아 번역이 미완이다: %q", name, p)
+		// 工具名是 ASCII、谚文属 Hangul 区段，所以本地化完成后不应出现任何谚文。
+		if hasScript(p, unicode.Hangul) {
+			t.Errorf("%s: 残留谚文，翻译未完成: %q", name, p)
 		}
 	}
 
-	// 도구 이름은 식별자이므로 번역하지 않고 그대로 보존되어야 한다.
-	// worker 계열(per-run·task-timeout)은 record_fact 로 결론을, report_finding 으로
-	// 취약점을 쓰고, 마지막에 한 문장 순수 텍스트로 요약하라는 지시를 유지한다.
+	// 工具名是标识符，必须原样保留、不翻译。
+	// worker 系列（per-run 与 task-timeout）用 record_fact 写结论、report_finding
+	// 写漏洞，并在最后要求用一句话纯文本做总结，这些指示必须保留。
 	mustContain := func(name, p string, subs ...string) {
 		for _, s := range subs {
 			if !strings.Contains(p, s) {
-				t.Errorf("%s: 지시 의미 %q 가 보존되어야 하는데 없다", name, s)
+				t.Errorf("%s: 指示语义 %q 必须保留，但缺失", name, s)
 			}
 		}
 	}
 	mustContain("settleWrapUpPrompt", settleWrapUpPrompt,
-		"insert_assets", "record_fact", "report_finding", "한 문장", "순수 텍스트")
+		"insert_assets", "record_fact", "report_finding", "一句话", "纯文本")
 	mustContain("workerTaskTimeoutDefault", workerTaskTimeoutDefault,
-		"insert_assets", "record_fact", "report_finding", "한 문장", "순수 텍스트")
-	mustContain("genericWrapUpDefault", genericWrapUpDefault, "한 문장", "순수 텍스트")
-	mustContain("mainAgentWrapUpDefault", mainAgentWrapUpDefault, "한 문장", "순수 텍스트")
-	// planner 는 요약 문장을 내지 않고(판정만 하고 종료) 의도·목표·할일 도구를 유지한다.
+		"insert_assets", "record_fact", "report_finding", "一句话", "纯文本")
+	mustContain("genericWrapUpDefault", genericWrapUpDefault, "一句话", "纯文本")
+	mustContain("mainAgentWrapUpDefault", mainAgentWrapUpDefault, "一句话", "纯文本")
+	// planner 不产出总结句（只做判定后结束），并保留意图、目标、待办工具。
 	mustContain("plannerWrapUpDefault", plannerWrapUpDefault, "add_intent", "prove_goal", "TodoWrite")
 	mustContain("plannerTaskTimeoutDefault", plannerTaskTimeoutDefault, "prove_goal")
 }
 
-// per-run 과 task-timeout 은 의미가 달라야 한다(특히 planner): per-run 은 "이번 라운드만
-// 끝난다"이고 task-timeout 은 "작업 전체가 끝난다"이다. 상수 매핑이 바뀌어 섞이면 안 된다.
+// per-run 与 task-timeout 的语义必须不同（planner 尤其如此）：per-run 表示
+// 「只结束这一轮」，task-timeout 表示「整个任务结束」。常量映射被改乱就会串味。
 func TestWrapupDefaultsRouting(t *testing.T) {
 	if WrapupDefault("worker") != settleWrapUpPrompt {
-		t.Error("worker per-run 기본값이 settleWrapUpPrompt 가 아니다")
+		t.Error("worker 的 per-run 默认值不是 settleWrapUpPrompt")
 	}
 	if WrapupDefault("planner") != plannerWrapUpDefault {
-		t.Error("planner per-run 기본값이 plannerWrapUpDefault 가 아니다")
+		t.Error("planner 的 per-run 默认值不是 plannerWrapUpDefault")
 	}
 	if WrapupDefault("mainagent") != mainAgentWrapUpDefault {
-		t.Error("mainagent per-run 기본값이 mainAgentWrapUpDefault 가 아니다")
+		t.Error("mainagent 的 per-run 默认值不是 mainAgentWrapUpDefault")
 	}
-	// 미등록 키(커스텀 에이전트)는 generic 으로 떨어진다.
+	// 未注册的键（自定义 agent）落到 generic。
 	if WrapupDefault("unknown-agent") != genericWrapUpDefault {
-		t.Error("미등록 키가 genericWrapUpDefault 로 떨어지지 않는다")
+		t.Error("未注册的键没有落到 genericWrapUpDefault")
 	}
-	// task-timeout 은 worker/planner 에만 있고, 그 외는 빈 문자열(호출부가 per-run 으로 회귀).
+	// task-timeout 只有 worker/planner 有，其余返回空串（调用方回落到 per-run）。
 	if TaskTimeoutWrapupDefault("worker") != workerTaskTimeoutDefault {
-		t.Error("worker task-timeout 기본값이 workerTaskTimeoutDefault 가 아니다")
+		t.Error("worker 的 task-timeout 默认值不是 workerTaskTimeoutDefault")
 	}
 	if TaskTimeoutWrapupDefault("planner") != plannerTaskTimeoutDefault {
-		t.Error("planner task-timeout 기본값이 plannerTaskTimeoutDefault 가 아니다")
+		t.Error("planner 的 task-timeout 默认值不是 plannerTaskTimeoutDefault")
 	}
 	if TaskTimeoutWrapupDefault("mainagent") != "" {
-		t.Error("mainagent 은 task-timeout 문구가 없어야 한다(빈 문자열)")
+		t.Error("mainagent 不应有 task-timeout 文案（必须是空串）")
 	}
-	// per-run 과 task-timeout 문구가 동일하면 의미 구분이 사라진 것이다.
+	// per-run 与 task-timeout 文案相同就说明语义区分消失了。
 	if workerTaskTimeoutDefault == settleWrapUpPrompt {
-		t.Error("worker 의 per-run 과 task-timeout 문구가 동일하다")
+		t.Error("worker 的 per-run 与 task-timeout 文案相同")
 	}
 	if plannerTaskTimeoutDefault == plannerWrapUpDefault {
-		t.Error("planner 의 per-run 과 task-timeout 문구가 동일하다")
+		t.Error("planner 的 per-run 与 task-timeout 文案相同")
 	}
 }

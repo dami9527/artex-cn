@@ -23,31 +23,29 @@ func TestShutdownContextPreservesNamedCause(t *testing.T) {
 	}
 }
 
-// TestPrintBannerLocalized verifies that the startup banner printed to stdout is
-// Korean and carries no leftover CJK Han characters. This is the first thing a
-// user sees when running ARTEX, so it must not stay in Chinese (backlog F11).
-// The "[config] ..." log lines in run() are intentionally out of scope — they
-// are logs, which the localization brief ranks lowest (backlog Z2).
+// TestPrintBannerLocalized 验证打印到标准输出的启动横幅是简体中文，且不残留谚文。
+// 这是用户运行 ARTEX 看到的第一屏内容。run() 里的 "[config] ..." 日志行有意不在
+// 本用例范围内——它们属于日志，在本地化优先级里排最后（backlog Z2）。
 func TestPrintBannerLocalized(t *testing.T) {
 	out := captureStdout(t, func() { printBanner(":8787") })
-	t.Logf("배너 샘플:\n%s", out)
+	t.Logf("横幅样例:\n%s", out)
 
-	hasHangul := strings.ContainsFunc(out, func(r rune) bool {
-		return unicode.Is(unicode.Hangul, r)
+	hasHan := strings.ContainsFunc(out, func(r rune) bool {
+		return unicode.Is(unicode.Han, r)
 	})
-	if !hasHangul {
-		t.Fatalf("배너에 한글이 없다: %q", out)
+	if !hasHan {
+		t.Fatalf("横幅里没有汉字: %q", out)
 	}
 
-	for _, want := range []string{"자율 침투 테스트 시스템", "버전", "수신 대기", ":8787"} {
+	for _, want := range []string{"AI 自主渗透测试系统", "版本", "监听", ":8787"} {
 		if !strings.Contains(out, want) {
-			t.Errorf("배너에 %q 가 없다: %q", want, out)
+			t.Errorf("横幅缺少 %q: %q", want, out)
 		}
 	}
 
 	for _, r := range out {
-		if unicode.Is(unicode.Han, r) {
-			t.Errorf("배너에 CJK 한자 잔재(%q): %q", r, out)
+		if unicode.Is(unicode.Hangul, r) {
+			t.Errorf("横幅残留谚文(%q): %q", r, out)
 		}
 	}
 }

@@ -328,12 +328,11 @@ func (m *Manager) Workers() int {
 	return n
 }
 
-// errWorkersPositive 는 워크 에이전트 수 설정(settingWorkers)이 1 미만일 때 SetWorkers 가
-// 돌려주는 사용자 노출 오류다. 유일 호출처인 설정 PUT 핸들러(server.go:3512)가
-// writeErr(400, err.Error()) 로 그대로 응답하며, 에이전트 도구(actool) 로 되먹이는 경로는
-// 없으므로 사용자 전용으로 보고 한국어로 유지한다. 용어는 UI 설정 화면(ko.json
-// settings.workers "워크 에이전트 수")과 맞춘다.
-const errWorkersPositive = "워크 에이전트 수는 1 이상이어야 합니다"
+// errWorkersPositive 是执行者数量设置(settingWorkers)小于 1 时 SetWorkers
+// 返回的用户可见错误。唯一调用处是设置 PUT 处理器(server.go:3512)，
+// 它以 writeErr(400, err.Error()) 原样响应，且不存在回灌到 agent 工具(actool) 的路径，
+// 故按用户专用处理并写成中文。
+const errWorkersPositive = "workers 必须 >0"
 
 // SetWorkers persists the concurrent work-agent count. Values <=0 are rejected.
 func (m *Manager) SetWorkers(n int) error {
@@ -365,7 +364,7 @@ func NewManager(dir, proxyAddr string) (*Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[pg] 데이터베이스 설정 출처: %s", source)
+	log.Printf("[pg] 数据库配置来源: %s", source)
 	pg, err := pgdb.Open(dsn)
 	if err != nil {
 		return nil, err
@@ -388,10 +387,10 @@ func NewManager(dir, proxyAddr string) (*Manager, error) {
 		} else {
 			err = tr.RecoverHostDeleteStages(func(_ int64, taskID int64) (bool, error) {
 				if taskID <= 0 {
-					// 기동 중 트래픽 복구 콜백의 내부 정합 오류다. NewManager 가
-					// fmt.Errorf("recover traffic delete staging: %w", err) 로 감싸 기동 실패로
-					// 전파할 뿐 writeErr·actool 어느 경로에도 닿지 않는 운영자 기동 로그라,
-					// F3b(사용자 노출 writeErr) 범위가 아니어서 원문을 보존한다(Z2 계열).
+					// 启动期间流量恢复回调的内部一致性错误。NewManager 以
+					// fmt.Errorf("recover traffic delete staging: %w", err) 包装后作为启动失败
+					// 向外传播，不触及 writeErr·actool 任何路径，属于运维启动日志，
+					// 不在 F3b(用户可见 writeErr)范围内，故保留原文(Z2 系列)。
 					return false, errors.New("归档流量暂存日志缺少任务 ID")
 				}
 				task, taskErr := pg.GetTask(taskID)
@@ -684,9 +683,9 @@ func (m *Manager) syncBrowserMCPProxy() {
 		return
 	}
 	if proxy != "" {
-		log.Printf("[mcp] browser MCP 캡처 프록시 연결: %s (CA %s)", proxy, cert)
+		log.Printf("[mcp] browser MCP 已挂捕获代理 %s (CA %s)", proxy, cert)
 	} else {
-		log.Printf("[mcp] browser MCP 캡처 프록시 설정 제거")
+		log.Printf("[mcp] browser MCP 已移除捕获代理配置")
 	}
 }
 

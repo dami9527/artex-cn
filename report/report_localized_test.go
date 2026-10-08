@@ -10,11 +10,11 @@ import (
 	"github.com/Autumn-27/artex/db"
 )
 
-// containsHan 은 문자열에 CJK 한자(중국어)가 섞여 있으면 true 를 돌려준다.
-// 한글(unicode.Hangul)·영문·숫자·기호는 한자가 아니므로 걸리지 않는다.
-func containsHan(s string) (rune, bool) {
+// containsHangul 判断字符串里是否混入了谚文。
+// 汉字（简体中文）、英文、数字与符号都不是谚文，因此不会被判定命中。
+func containsHangul(s string) (rune, bool) {
 	for _, r := range s {
-		if unicode.Is(unicode.Han, r) {
+		if unicode.Is(unicode.Hangul, r) {
 			return r, true
 		}
 	}
@@ -25,13 +25,13 @@ func sampleFindingNode(t *testing.T) *db.Node {
 	t.Helper()
 	payload, err := json.Marshal(map[string]any{
 		"vulnclass": "SQL Injection",
-		"name":      "로그인 폼 SQL 주입",
+		"name":      "登录表单 SQL 注入",
 		"severity":  "high",
-		"summary":   "로그인 파라미터에서 오류 기반 SQL 주입이 확인되었습니다.",
+		"summary":   "登录参数处确认存在报错型 SQL 注入。",
 		"evidence":  map[string]string{"poc": "' OR '1'='1"},
 	})
 	if err != nil {
-		t.Fatalf("payload 직렬화 실패: %v", err)
+		t.Fatalf("payload 序列化失败: %v", err)
 	}
 	return &db.Node{ID: 1, Kind: "finding", Payload: payload}
 }
@@ -40,20 +40,20 @@ func sampleDBFinding() *db.DBFinding {
 	return &db.DBFinding{
 		ID:              123,
 		VulnClass:       "SQL Injection",
-		Name:            "로그인 폼 SQL 주입",
+		Name:            "登录表单 SQL 注入",
 		Severity:        "high",
-		Summary:         "로그인 파라미터에서 오류 기반 SQL 주입이 확인되었습니다.",
+		Summary:         "登录参数处确认存在报错型 SQL 注入。",
 		Evidence:        "' OR '1'='1",
 		Status:          "confirmed",
-		Report:          "상세 분석 본문.",
+		Report:          "详细分析正文。",
 		CreatedAt:       time.Date(2026, 10, 4, 2, 30, 0, 0, time.UTC),
 		EvidenceVersion: 2,
-		TaskDescription: "데모 대상 침투 테스트",
+		TaskDescription: "演示目标渗透测试",
 		TrafficBindings: []db.FindingTrafficBinding{
 			{
 				ID:   9,
 				Role: "request",
-				Note: "주입 페이로드 전송 지점",
+				Note: "注入 payload 发送点",
 				Snapshot: db.TrafficEvidenceSnapshot{
 					Method: "POST",
 					URL:    "https://sandbox.local/login",
@@ -64,105 +64,105 @@ func sampleDBFinding() *db.DBFinding {
 	}
 }
 
-// TestReportMarkdownLocalized 는 탐색 그래프 보고서(report.Markdown)의 골격이 한국어이고
-// 중국어 한자가 전혀 없음을 검증한다.
+// TestReportMarkdownLocalized 验证探索图谱报告(report.Markdown)的骨架是简体中文，
+// 且不含任何谚文。
 func TestReportMarkdownLocalized(t *testing.T) {
 	out := Markdown(Input{
-		Title:       "데모 작업",
-		Goal:        "샌드박스 전수 점검",
+		Title:       "演示任务",
+		Goal:        "全量排查沙箱",
 		GeneratedAt: time.Date(2026, 10, 4, 2, 30, 0, 0, time.UTC),
 		AssetCounts: map[string]int{"host": 2, "url": 5},
 		Findings:    []*db.Node{sampleFindingNode(t)},
 	})
-	if r, ok := containsHan(out); ok {
-		t.Fatalf("보고서 골격에 중국어 한자 %q 가 남아 있다:\n%s", string(r), out)
+	if r, ok := containsHangul(out); ok {
+		t.Fatalf("报告骨架仍残留谚文 %q:\n%s", string(r), out)
 	}
 	for _, want := range []string{
-		"# 침투 테스트 보고서: 데모 작업",
-		"- **작업 목표**: 샌드박스 전수 점검",
-		"- **생성 시각**:",
-		"## 요약",
-		"- 확인된 취약점: **1**건",
-		"## 취약점",
-		"**PoC / 증거:**",
+		"# 渗透测试报告 — 演示任务",
+		"- **任务目标**：全量排查沙箱",
+		"- **生成时间**：",
+		"## 摘要",
+		"- 确认发现：**1** 个",
+		"## 发现",
+		"**PoC / 证据：**",
 	} {
 		if !strings.Contains(out, want) {
-			t.Errorf("보고서 골격에 %q 가 없다", want)
+			t.Errorf("报告骨架缺少 %q", want)
 		}
 	}
 }
 
-// TestReportMarkdownEmptyLocalized 는 취약점이 없을 때의 안내 문구가 한국어임을 검증한다.
+// TestReportMarkdownEmptyLocalized 验证没有漏洞时的提示文案是简体中文。
 func TestReportMarkdownEmptyLocalized(t *testing.T) {
-	out := Markdown(Input{Title: "빈 작업", GeneratedAt: time.Now()})
-	if r, ok := containsHan(out); ok {
-		t.Fatalf("빈 보고서에 중국어 한자 %q 가 남아 있다:\n%s", string(r), out)
+	out := Markdown(Input{Title: "空任务", GeneratedAt: time.Now()})
+	if r, ok := containsHangul(out); ok {
+		t.Fatalf("空报告仍残留谚文 %q:\n%s", string(r), out)
 	}
-	if !strings.Contains(out, "_이번에 확인된 취약점이 없습니다._") {
-		t.Errorf("빈 보고서 안내 문구가 한국어가 아니다:\n%s", out)
+	if !strings.Contains(out, "_本次未确认漏洞。_") {
+		t.Errorf("空报告提示文案不是简体中文:\n%s", out)
 	}
 }
 
-// TestFindingsMarkdownLocalized 는 취약점 요약/상세 Markdown 익스포트 골격과 심각도 라벨이
-// 한국어이고 중국어 한자가 없음을 검증한다.
+// TestFindingsMarkdownLocalized 验证漏洞汇总/明细 Markdown 导出的骨架与严重等级
+// 标签是简体中文，且不含谚文。
 func TestFindingsMarkdownLocalized(t *testing.T) {
 	f := sampleDBFinding()
 	out := FindingsMarkdown([]*db.DBFinding{f}, time.Date(2026, 10, 4, 2, 30, 0, 0, time.UTC))
-	if r, ok := containsHan(out); ok {
-		t.Fatalf("취약점 요약 보고서에 중국어 한자 %q 가 남아 있다:\n%s", string(r), out)
+	if r, ok := containsHangul(out); ok {
+		t.Fatalf("漏洞汇总报告仍残留谚文 %q:\n%s", string(r), out)
 	}
 	for _, want := range []string{
-		"# 취약점 요약 보고서",
-		"- **생성 시각**:",
-		"- **취약점 총계**: 1건",
-		"## 요약",
-		"| 심각도 | 개수 |",
-		"| 심각 |", "| 높음 |", "| 중간 |", "| 낮음 |", // 심각도 라벨(UI status.severity 와 동일)
-		"## 취약점 상세",
-		"- **유형**: SQL Injection",
-		"- **상태**: confirmed",
-		"- **소속 작업**: 데모 대상 침투 테스트",
-		"- **발견 시각**:",
-		"**증거:**",
-		"**상세 보고서:**",
-		"## 관련 트래픽 증거",
-		"증거 버전: 2, 바인딩 개수: 1.",
+		"# 漏洞发现汇总报告",
+		"- **生成时间**：",
+		"- **发现总数**：1 个",
+		"## 摘要",
+		"| 严重等级 | 数量 |",
+		"| 严重 |", "| 高危 |", "| 中危 |", "| 低危 |", // 严重等级标签（与 UI status.severity 一致）
+		"## 漏洞明细",
+		"- **类别**：SQL Injection",
+		"- **状态**：confirmed",
+		"- **所属任务**：演示目标渗透测试",
+		"- **发现时间**：",
+		"**证据：**",
+		"**详细报告：**",
+		"## 关联流量证据",
+		"证据版本：2；绑定数量：1。",
 	} {
 		if !strings.Contains(out, want) {
-			t.Errorf("요약 보고서에 %q 가 없다", want)
+			t.Errorf("汇总报告缺少 %q", want)
 		}
 	}
 
 	single := SingleFindingMarkdown(f, time.Date(2026, 10, 4, 2, 30, 0, 0, time.UTC))
-	if r, ok := containsHan(single); ok {
-		t.Fatalf("단건 보고서에 중국어 한자 %q 가 남아 있다:\n%s", string(r), single)
+	if r, ok := containsHangul(single); ok {
+		t.Fatalf("单条报告仍残留谚文 %q:\n%s", string(r), single)
 	}
 	for _, want := range []string{
-		"- **심각도**: high",
-		"## 개요",
-		"## 증거",
-		"## 상세 보고서",
-		"[요청 메시지](evidence/123/9/request.http)",
-		"[응답 메시지](evidence/123/9/response.http)",
+		"- **严重等级**：high",
+		"## 概述",
+		"## 证据",
+		"## 详细报告",
+		"[请求报文](evidence/123/9/request.http)",
+		"[响应报文](evidence/123/9/response.http)",
 	} {
 		if !strings.Contains(single, want) {
-			t.Errorf("단건 보고서에 %q 가 없다", want)
+			t.Errorf("单条报告缺少 %q", want)
 		}
 	}
 }
 
-// TestFindingsCSVLocalized 는 CSV 익스포트 헤더가 한국어이고 중국어 한자가 없음을 검증한다.
-// (BOM 뒤 헤더 행만 한국어면 된다. 데이터 값은 원본 그대로 둔다.)
+// TestFindingsCSVLocalized 验证 CSV 导出的表头是简体中文，且不含谚文。
+// （BOM 之后的表头行是中文即可，数据值保持原样。）
 func TestFindingsCSVLocalized(t *testing.T) {
 	raw := FindingsCSV([]*db.DBFinding{sampleDBFinding()})
 	out := strings.TrimPrefix(string(raw), "\xEF\xBB\xBF")
 	header := strings.SplitN(out, "\n", 2)[0]
-	if r, ok := containsHan(header); ok {
-		t.Fatalf("CSV 헤더에 중국어 한자 %q 가 남아 있다: %s", string(r), header)
+	if r, ok := containsHangul(header); ok {
+		t.Fatalf("CSV 表头仍残留谚文 %q: %s", string(r), header)
 	}
-	for _, col := range []string{"ID", "이름", "유형", "심각도", "상태", "소속 작업", "발견 시각", "개요", "트래픽 증거 개수", "트래픽 증거 ID"} {
+	for _, col := range []string{"ID", "名称", "类别", "严重等级", "状态", "所属任务", "发现时间", "概述", "流量证据数量", "流量证据ID"} {
 		if !strings.Contains(header, col) {
-			t.Errorf("CSV 헤더에 %q 열이 없다: %s", col, header)
+			t.Errorf("CSV 表头缺少 %q 列: %s", col, header)
 		}
 	}
 }

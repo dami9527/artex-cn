@@ -1,12 +1,12 @@
 <div align="center">
 
-# ARTEX — Korean Edition
+# ARTEX — Chinese Edition
 
 **An autonomous penetration-testing system driven by LLM multi-agents** (Go backend + Next.js frontend)
 
-[한국어](README.md) · [中文](README.zh.md) · English
+[中文](README.md) · English
 
-[![ci](https://github.com/jiwoochris/artex-ko/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jiwoochris/artex-ko/actions/workflows/ci.yml) [![detections](https://github.com/jiwoochris/artex-ko/actions/workflows/detections.yml/badge.svg?branch=main)](https://github.com/jiwoochris/artex-ko/actions/workflows/detections.yml) [![web](https://github.com/jiwoochris/artex-ko/actions/workflows/web.yml/badge.svg?branch=main)](https://github.com/jiwoochris/artex-ko/actions/workflows/web.yml) [![license: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![ci](https://github.com/dami9527/artex-cn/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dami9527/artex-cn/actions/workflows/ci.yml) [![detections](https://github.com/dami9527/artex-cn/actions/workflows/detections.yml/badge.svg?branch=main)](https://github.com/dami9527/artex-cn/actions/workflows/detections.yml) [![web](https://github.com/dami9527/artex-cn/actions/workflows/web.yml/badge.svg?branch=main)](https://github.com/dami9527/artex-cn/actions/workflows/web.yml) [![license: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
 </div>
 
@@ -16,21 +16,21 @@
 >
 > **This repository is published for use only within authorized environments, and only to build defensive and detection capabilities.**
 >
-> ARTEX is an autonomous offensive tool powerful enough to carry an attack from reconnaissance through intrusion to data exfiltration with little human involvement, so the harm from misuse is correspondingly large. In October 2026, several Korean news outlets reported that investigators had found indications the upstream ARTEX was used in personal-data breaches targeting Korean financial institutions; the related investigation is ongoing. This Korean edition is not published to help attackers. Its purpose is to help defenders understand how such autonomous AI attacks work and build the capability to detect and block them.
+> ARTEX is an autonomous offensive tool powerful enough to carry an attack from reconnaissance through intrusion to data exfiltration with little human involvement, so the harm from misuse is correspondingly large. This Chinese edition is not published to help attackers. Its purpose is to help defenders understand how such autonomous AI attacks work and build the capability to detect and block them.
 >
-> - **Unauthorized use is a crime in itself.** Do not run any scanning, probing, or exploitation against systems you do not own or for which you lack explicit written authorization. In the Republic of Korea, unauthorized intrusion into an information and communications network violates the Network Act, and the Personal Information Protection Act also applies where personal data is involved.
+> - **Unauthorized use is a crime in itself.** Do not run any scanning, probing, or exploitation against systems you do not own or for which you lack explicit written authorization. In mainland China, unauthorized intrusion into another party's information network or interference with its normal operation is unlawful, and personal data involved brings additional personal-information protection duties.
 > - **Do not target live services or other parties' assets.** Verify only in learning, research, and locally isolated environments you own (deliberately vulnerable targets such as OWASP Juice Shop or DVWA).
-> - **Read it from a defender's point of view.** This repository also compiles defensive and detection material, such as detection signatures and hardening checklists, for autonomous AI attacks. → **[Defense & Detection Guide](docs/defense-en.md)** (also in [Korean](docs/defense-ko.md))
+> - **Read it from a defender's point of view.** This repository also compiles defensive and detection material, such as detection signatures and hardening checklists, for autonomous AI attacks. → **[Defense & Detection Guide](docs/defense-zh.md)** (also in [English](docs/defense-en.md))
 >
 > If you do not agree to this warning and to the [usage restrictions and disclaimer](#license-and-disclaimer) below, do not download or use this repository.
 
 ---
 
-> **This repository is a localized edition of the Chinese open-source project [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX) (AGPL-3.0), adapted so that Korean users and teams can adopt it as-is.** To preserve the agents' decision-making performance, the internal reasoning prompts are kept in the original language, and only the user-facing output (findings, summaries, reports, chat replies) is forced into Korean. See ["Why a Korean edition"](#why-a-korean-edition) below for the rationale.
+> **This repository is a localized edition of the open-source project [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX) (AGPL-3.0), presented as the default Simplified-Chinese edition.** To preserve the agents' decision-making performance, the internal reasoning prompts are kept in the original language, and only the user-facing output (findings, summaries, reports, chat replies) is forced into Simplified Chinese. See ["Why a Chinese edition"](#why-a-chinese-edition) below for the rationale.
 
 ARTEX is a system in which several LLM-driven agents autonomously run a penetration test: they **break goals down on their own, execute real tools, and accumulate discovered assets and vulnerabilities into a graph** as they go. A single Go binary ships with the Next.js frontend embedded, and all data is stored in PostgreSQL.
 
-> **Note on this edition's language.** The product UI, prompts, and user-facing output of this fork are being localized to **Korean**, not English. This English README exists so international readers can understand what the project is, how it differs from upstream, and how to run it. If you want the agent output in another language, see [Configuration](#configuration) — the output language is enforced by a small code-fixed directive that can be adapted.
+> **Note on this edition's language.** The product UI and the user-facing agent output of this repository are **Simplified Chinese**, not English. This English README exists so international readers can understand what the project is, how it differs from upstream, and how to run it.
 
 ---
 
@@ -38,8 +38,8 @@ ARTEX is a system in which several LLM-driven agents autonomously run a penetrat
 
 ARTEX may be used **only against targets you own or for which you have explicit written authorization.** Any scanning, probing, or exploitation beyond the authorized scope may itself be illegal.
 
-- In the Republic of Korea, intruding into or disrupting another party's information and communications network without authorization violates the **Act on Promotion of Information and Communications Network Utilization and Information Protection** (정보통신망법).
-- Personal data collected or exposed during a penetration test is subject to the Korean **Personal Information Protection Act** (개인정보보호법). Even with authorization, handle the access, retention, and deletion of personal data with care.
+- In mainland China, intruding into another party's information network or disrupting its normal operation without authorization violates the **Cybersecurity Law of the People's Republic of China**.
+- Personal data collected or exposed during a penetration test is subject to the **Personal Information Protection Law of the People's Republic of China**, and important data additionally falls under the **Data Security Law of the People's Republic of China**. Even with authorization, handle the access, retention, and deletion of personal data with care.
 - Wherever you are, comply with your own jurisdiction's laws on network security, data protection, and computer crime.
 - Use this for **learning, research, and verification in locally isolated environments.** Before targeting any live external system, secure written authorization and an agreed scope and time window.
 
@@ -47,41 +47,41 @@ Full license terms, usage restrictions, and the disclaimer are in the [License a
 
 ---
 
-## Why a Korean edition
+## Why a Chinese edition
 
-Upstream ARTEX has its prompts, UI, and documentation entirely in Chinese, which made it cumbersome for Korean users to read the results and share them with a team. This edition aims to:
+Upstream ARTEX already has Chinese prompts, UI, and documentation. This repository is maintained as the **default edition for Chinese-speaking users**, and aims to:
 
-- **Localize the output** — the findings, fact summaries, final reports, and chat replies that agents surface to a human are forced into Korean. Commands, payloads, code, URLs, and raw logs are needed for analysis and are left in their original form.
-- **Preserve performance** — the internal reasoning prompts (the behavioral instruction body) that drive the agents' judgment are **not** translated. Behavior benchmarked in the original language is kept intact, and only the output language is changed, avoiding the quality drift that translation introduces.
-- **State the legal boundaries** — the notices on Korean network and privacy law and the "authorized scope only" warning are provided clearly in Korean.
+- **Keep user-facing output in Simplified Chinese** — the findings, fact summaries, final reports, and chat replies that agents surface to a human are forced into Simplified Chinese. Commands, payloads, code, URLs, and raw logs are needed for analysis and are left in their original form.
+- **Preserve performance** — the internal reasoning prompts (the behavioral instruction body) that drive the agents' judgment are **not** translated. Behavior benchmarked in the original language is kept intact, and only the output language is enforced, avoiding the quality drift that translation introduces.
+- **State the legal boundaries** — the compliance notices on the Cybersecurity Law, the Data Security Law, and the Personal Information Protection Law, plus the "authorized scope only" warning, are provided clearly in Chinese.
 - **Support the local stack** — the LLM provider can be swapped from a frontier model to any OpenAI-compatible endpoint (domestic or open models). See [Configuration](#configuration).
 
-> The boundaries and design policy of this localization are documented in more detail in the repository's working notes. To make it easy to diff against the upstream repository, the original Chinese document is preserved as [`README.zh.md`](README.zh.md).
+> The boundaries and design policy of this localization are documented in more detail in the repository's working notes. To make it easy to diff against the upstream repository, the upstream Chinese original is preserved as [`README.zh.md`](README.zh.md).
 
 ---
 
 ## Screenshots
 
-The three screens below are the localized Korean UI. The data comes from a local, isolated sandbox: every target is the fictional `acme.com` and private address ranges.
+The three screens below are the actual rendering of this repository's Chinese UI in mock demo mode (`NEXT_PUBLIC_MOCK=1`). Every number in them is demo data, and every target is the fictional `acme.com` and private address ranges.
 
 <p align="center">
-  <img src="screenshots/ko/dashboard.png" width="900" alt="Dashboard overview"><br>
+  <img src="screenshots/zh/dashboard.png" width="900" alt="Dashboard overview"><br>
   <sub><b>Dashboard</b> — active tasks, confirmed findings, asset nodes, LLM token spend, and the activity feed on one screen.</sub><br>
-  <sub>This dashboard image was captured before the card labels were localized, so the data-source name on the "LLM Token 소비" card still reads as the raw identifier <code>llm_usage</code>. The current build shows the localized labels there instead: 「계량 원장」 (new) and 「활동 통계」 (old).</sub>
+  <sub>The "LLM Token 消耗" card switches between an "旧版" and a "新版" view (旧版 maps to 活动统计, "activity statistics"; 新版 maps to 计量账本, the "metering ledger"). This image sits on 旧版, and the time range in its top-right corner is set to 1年 (one year); the chart and the totals are all demo data.</sub>
 </p>
 
 <p align="center">
-  <img src="screenshots/ko/findings.png" width="900" alt="Findings list"><br>
+  <img src="screenshots/zh/findings.png" width="900" alt="Findings list"><br>
   <sub><b>Findings</b> — results aggregated by severity, status, asset, and owning task, exportable to CSV.</sub><br>
-  <sub>Finding <b>titles</b> are model-generated, so English technical terms can appear, mirroring the target app ([Model selection and output language](#model-selection-and-output-language)). The description under each title and the rest of the UI are Korean.</sub>
+  <sub>Finding <b>titles</b> are model-generated, so English technical terms can appear, mirroring the target app ([Model selection and output language](#model-selection-and-output-language)). The description under each title and the rest of the UI are Simplified Chinese.</sub>
 </p>
 
 <p align="center">
-  <img src="screenshots/ko/chat.png" width="900" alt="Human-in-the-loop chat"><br>
-  <sub><b>Chat</b> — a human steps into the autonomous run to inject hints while the agent summarizes the attack chain in Korean.</sub>
+  <img src="screenshots/zh/chat.png" width="900" alt="Human-in-the-loop chat"><br>
+  <sub><b>Chat</b> — the human-in-the-loop entry point. The conversation titles on the left are Chinese and the right pane is the empty state for a new conversation; pick an agent and the conversation starts, with the agent replying and summarizing the attack chain in Chinese.</sub>
 </p>
 
-The original (Chinese UI) screens are available in [`README.zh.md`](README.zh.md#截图预览) (Chinese UI).
+The upstream (Chinese UI) screens are available in [`README.zh.md`](README.zh.md#截图预览).
 
 ---
 
@@ -89,48 +89,38 @@ The original (Chinese UI) screens are available in [`README.zh.md`](README.zh.md
 
 > **Prerequisites:** Docker and Docker Compose. The database is **PostgreSQL**, brought up by compose. Exploration requires an **LLM** (`ANTHROPIC_API_KEY` or `OPENAI_API_KEY`; can also be set in the UI).
 
-> **⚠️ `docker compose up -d` on its own will not give you the Korean edition.** The `artex` service in `docker-compose.yml` is set up to pull `autumn27/artex`, and that image **disappeared from Docker Hub** when the original author closed the repository (a pull now returns `not found`). The only remaining path is to **build it yourself**, which also gets you this repository's Korean edition rather than the Chinese UI. See [Building the Korean edition image locally](#building-the-korean-edition-image-locally) below.
+> **⚠️ `docker compose up -d` on its own will not start anything.** The `artex` service in `docker-compose.yml` used to pull `autumn27/artex`, and that image **disappeared from Docker Hub** when the original author closed the repository (a pull now returns `not found`). The only remaining path is to **build it yourself**, which also gets you this repository's Chinese edition. See [Building the Chinese edition image locally](#building-the-chinese-edition-image-locally) below.
 >
 > (This repository does not publish an image to Docker Hub, so `ARTEX_IMAGE` is used only as the tag of the image you build.)
 
 ```bash
-git clone https://github.com/jiwoochris/artex-ko.git
-cd artex-ko
+git clone https://github.com/dami9527/artex-cn.git
+cd artex-cn
 cp .env.example .env          # set POSTGRES_PASSWORD; ANTHROPIC_API_KEY is optional
-docker compose up -d --build  # build the Korean edition image and bring it up with postgres
+./build-image.sh              # ① frontend → ② binary → ③ build the Chinese edition image and bring it up (runs docker compose up -d --build internally)
 # → open http://localhost:8787 (on first visit, set the admin password at /setup)
 ```
 
 `./skills` and `./data` are bind-mounted to the host and survive container recreation.
 
-### Switching the UI language (Korean ↔ Chinese)
+### UI and output language
 
-This repository is the **Korean edition**, so the default UI language is Korean (`ko`). You can also build the Chinese UI (`zh`).
+This repository is the **Chinese edition**: the UI language is fixed to Simplified Chinese (`zh`) and **there is no switch.** `LOCALES` in `web/src/i18n/config.ts` contains only `zh`, `NEXT_PUBLIC_LOCALE` is read at build time and falls back to `zh` for any other value, and the strings live in `web/messages/zh.json`.
 
-```bash
-./build-image.sh --locale zh     # build and start with the Chinese UI
-./build-image.sh                 # build and start with ARTEX_LOCALE from .env (default ko)
-./build-image.sh --locale ko     # switch back to Korean
-```
+> **Important: both the UI and the agent output are Simplified Chinese.** The language of the **vulnerability reports, fact summaries, final summaries and chat replies the agent writes is decided by Go code** (`langDirective()` in `agent/prompt.go` forces Simplified Chinese — that is this repository's design). Commands, payloads, code, URLs, and raw logs are needed for analysis and stay as they are.
 
-You can also put `NEXT_PUBLIC_LOCALE=zh` in `.env` and just run `./build-image.sh`. If the binary was already built for the same language it is reused instead of rebuilt (pass `--force` to override, `--no-up` to skip starting).
-
-> **⚠️ `NEXT_PUBLIC_LOCALE=zh docker compose up -d --build` does not work.** This project's `Dockerfile` is a **run-only image that does not compile the frontend inside the container** (it does `COPY dist/<arch>/artex`, a pre-built Linux binary with `web/out` embedded). So compose merely copies that binary (`COPY` finishes as `CACHED`), and **the UI language is decided when `next build` runs on the host.** `build-image.sh` above performs that host-side step for you.
-
-> **Important: this changes only the on-screen text.** The language of the **vulnerability reports, fact summaries, final summaries and chat replies the agent writes is decided by Go code** (`langDirective()` in `agent/prompt.go` forces Korean output — that is this fork's design). So with a Chinese UI the agent still writes Korean. Changing that too means editing `langDirective()` and the test that pins its contract (`agent/prompt_test.go`), which reverts this fork's localization design.
-
-> Building the Chinese UI makes `scripts/check-web-cjk.py` (the merge gate that enforces zero Han characters) fail. To declare the Chinese build intentional, set `NEXT_PUBLIC_LOCALE=zh` when running the check as well — it then skips.
+> **No-Korean gate.** The repository turns "no Korean may remain" into an executable check, `scripts/check-no-korean.py`: it scans the text files under the working tree (skipping `.git`, dependency directories such as `node_modules`, build output, and binaries) and exits non-zero if any line still contains Hangul. Run `python3 -I scripts/check-no-korean.py` to reproduce the check after a change.
 
 ---
 
-## Building the Korean edition image locally
+## Building the Chinese edition image locally
 
 The `Dockerfile` is a **run-only image: it does not compile anything inside the container** (what goes in is a pre-built Linux single binary). So the order matters: **① frontend → ② binary → ③ image**. Skipping an earlier step makes the image build fail at `COPY dist/<arch>/artex`.
 
-The single command `docker compose up -d --build` performs ①②③ for you. To run the steps separately, or to just build the image, use the following as-is.
+**Provided `dist/<arch>/artex` is already in place (that is, ①② have been run, or `./build-image.sh` has been run once)**, `docker compose up -d --build` can build and start directly; a fresh clone has no such binary, so running compose there fails at `COPY dist/<arch>/artex` and does not replace ①②③ below. The recommended path is to run `./build-image.sh` first: it walks ①→②→③ and (by default) starts the service, reusing an existing binary when the language has not changed. To run the steps separately, or to just build the image, use the following as-is.
 
 ```bash
-cd artex-ko
+cd artex-cn
 
 # ① Build the frontend static export and sync it into the embed directory
 cd web && npm ci --include=dev && NEXT_EXPORT=1 npx next build && cd ..
@@ -142,20 +132,21 @@ rsync -a --delete web/out/ server/webui/dist/     # --delete: avoids nesting on 
 mkdir -p dist/arm64
 CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
   -tags embedui -trimpath \
-  -ldflags "-s -w -buildid= -X main.version=0.3.15-ko" \
+  -ldflags "-s -w -buildid= -X main.version=0.3.15-cn" \
   -o dist/arm64/artex ./cmd/artex
 
 # ③ Build the image
-docker build -t artex-ko:local .
+docker build -t artex-cn:local .
+docker run --rm artex-cn:local --help            # optional smoke check
 ```
 
-`docker build` targets the **build machine's architecture unless you pass `--platform`**, so the directory name from ② (`dist/arm64`) must match. On an Intel Mac or an x86_64 Linux server, use `GOARCH=amd64` and `dist/amd64` instead. To build for a different architecture, pass e.g. `docker build --platform linux/amd64 -t artex-ko:local .` (and match `GOARCH` in ②).
+`docker build` targets the **build machine's architecture unless you pass `--platform`**, so the directory name from ② (`dist/arm64`) must match. On an Intel Mac or an x86_64 Linux server, use `GOARCH=amd64` and `dist/amd64` instead. To build for a different architecture, pass e.g. `docker build --platform linux/amd64 -t artex-cn:local .` (and match `GOARCH` in ②).
 
 To run the built image with compose, `docker compose up -d` is enough (omitting `--build` reuses the image you already built).
 
 > **Relation to `build.sh`:** the repository's [`build.sh`](build.sh) is for releases and writes its output to a **different path**, e.g. `dist/artex-linux-amd64/artex`. The Dockerfile looks for `dist/<arch>/artex`, so the two do not line up as-is. When using `docker build`, either specify the path yourself as in ②, or drive `build.sh` to the same path with `ARTEX_OUTPUT=dist/arm64/artex ARTEX_SKIP_FRONTEND=1 ./build.sh --target linux/arm64`.
 
-> **You cannot build the Docker image from the precompiled binaries in Releases.** The release zip contains only `skills/`, `start.sh`, and the binary — there is no `dist/<arch>/` structure, so the Dockerfile's `COPY` cannot succeed. Use the zip to run it directly without a container (see "Single-binary build from source" below).
+> **You cannot build the Docker image from the precompiled binaries in Releases.** The release zip contains only `skills/`, `start.sh`, and the binary — there is no `dist/<arch>/` structure, so the Dockerfile's `COPY` cannot succeed. Use the zip to run it directly without a container (see "Other installation methods" below).
 
 ### When the page will not open (Docker)
 
@@ -166,7 +157,7 @@ docker compose ps
 docker compose logs artex | tail -20
 ```
 
-**Symptom: the browser cannot connect, and the log repeats `password authentication failed for user "artex" (SQLSTATE 28P01)` followed by `비정상 종료 (code=1) … 재시작`.**
+**Symptom: the browser cannot connect, and the log repeats `password authentication failed for user "artex" (SQLSTATE 28P01)` together with an abnormal-exit and restart notice carrying `code=1`.**
 
 The official PostgreSQL image reads `POSTGRES_PASSWORD` **exactly once, when the data volume is empty**, and uses it for `initdb`. So **if you change the password in `.env` while the volume already exists, that value is ignored** — only artex tries to connect with the new password and fails authentication. artex cannot start without a database, so it exits and restarts in a loop; Docker still holds the port, but with no listening process inside the container the connection is dropped.
 
@@ -192,7 +183,7 @@ docker compose restart artex
 
 Upstream provides several methods: an install script (`./install.sh`), precompiled binaries (Releases), and a single-binary build from source. The commands and full procedure are collected in the "安装" (Installation) section of [`README.zh.md`](README.zh.md#安装) (in Chinese); the essentials are reproduced below.
 
-- **Install script:** running `./install.sh` detects/installs Docker and then lets you choose "① all-in-Docker" or "② local compile and run." "① all-in-Docker" now builds the Korean edition image from the current source (`docker compose up -d --build`); the upstream image it used to pull is gone, so that path would fail.
+- **Install script:** running `./install.sh` detects/installs Docker and then lets you choose "① all-in-Docker" or "② local compile and run." "① all-in-Docker" writes `.env`, calls `./build-image.sh` to build the image from the current source, and then runs `docker compose up -d --build`; it does **not** pull the vanished upstream image (`autumn27/artex`).
 - **Single-binary build from source:**
 
   ```bash
@@ -224,18 +215,16 @@ Upstream provides several methods: an install script (`./install.sh`), precompil
 
 **LLM:** `export ANTHROPIC_API_KEY=sk-...` (or `OPENAI_API_KEY`), or enter it on the UI's "LLM settings" page. Optional environment variables: `ARTEX_LLM_PROVIDER` / `ARTEX_LLM_MODEL` / `ARTEX_LLM_BASE_URL` / `ARTEX_LLM_PROXY`. To use a domestic or open model, point `ARTEX_LLM_BASE_URL` at an OpenAI-compatible endpoint.
 
-**Output language:** this edition forces user-facing output into Korean via a small, code-fixed directive appended to each role's system prompt (it does not translate the reasoning body). If you need a different output language, adapt that directive in `agent/prompt.go` (`langDirective`).
-
 **Concurrency:** the number of worker agents spawned per task is adjustable under "System settings" (default 3).
 
 **Common flags:** `./start.sh -addr :8787 -proxy :8788` — `-addr` is the frontend and API, `-proxy` is the traffic-recording proxy port.
 
 ### Model selection and output language
 
-The Korean localization is **driven by a prompt directive (`langDirective()` in `agent/prompt.go`), not a hard-coded cap.** So how consistently the output stays in Korean depends on the model's capability, the role, and the context.
+Simplified Chinese for user-facing output is **driven by a prompt directive (`langDirective()` in `agent/prompt.go`), not a hard-coded cap.** So how consistently the output stays in Chinese depends on the model's capability, the role, and the context.
 
-- **Use a capable frontier model.** In a short validation run that applied only the production directive against a local isolated sandbox, the default model `claude-opus-4-8` kept user-facing output in Korean across all four roles — planner, worker, reporter, and an authorized-sandbox planning request — with no refusals. `gpt-4o` also stayed in Korean on the same scenarios. A cheaper, smaller model (for example `gpt-4o-mini`), by contrast, let the report fall back to the original language. Output-language quality tracks model capability directly, so use a capable model wherever a human reads the report.
-- **Some role- and context-dependent drift remains.** Divergence shows up in role and output format more than in language itself. In particular, short outputs such as the worker's final one-sentence summary can expose the model's English chain-of-thought verbatim, and the structured fields of `report_finding` can lean toward English, mirroring the target app and its technical terms. In an earlier run, `gpt-4o`'s planner situation summary also reverted to the original language on some turns. Stating "write in Korean" explicitly in the task instruction raises the fidelity.
+- **Use a capable frontier model.** In a short validation run that applied only the production directive against a local isolated sandbox, the default model `claude-opus-4-8` kept user-facing output in the target language across the planner, worker, and reporter outputs and an authorized-sandbox planning request, with no refusals; `gpt-4o` also held it on the same scenarios. A cheaper, smaller model (for example `gpt-4o-mini`), by contrast, let the report fall back to the prompt body's original language. Output-language quality tracks model capability directly, so use a capable model wherever a human reads the report.
+- **Some role- and context-dependent drift remains.** Divergence shows up in role and output format more than in language itself. In particular, short outputs such as the worker's final one-sentence summary can expose the model's English chain-of-thought verbatim, and the structured fields of `report_finding` can lean toward English, mirroring the target app and its technical terms. In an earlier run, `gpt-4o`'s planner situation summary also reverted to the original language on some turns. Stating "write in Simplified Chinese" explicitly in the task instruction raises the fidelity.
 - **Give reasoning models a generous `max_tokens`.** A reasoning model that uses a separate thinking channel can spend a small response-token budget entirely on internal reasoning and leave the user-facing final answer empty. Here the answer itself disappears rather than the language, so set that LLM profile's `max_tokens` high enough.
 
 > **Token-cap pitfall on the OpenAI-compatible path.** OpenAI-family models such as `gpt-4o` cap response tokens at 16,384. OpenAI-compatible requests, however, carry a larger default output cap (32,768), so leaving it unchanged makes every call fail with `400 (max_tokens is too large)`. In that case, **set that profile's `max_tokens` to 16,384 or lower on the LLM settings page.** Anthropic-family models (including the default `claude-opus-4-8`) allow 32,768 and do not hit this pitfall.
@@ -244,13 +233,38 @@ The Korean localization is **driven by a prompt directive (`langDirective()` in 
 
 The frontend and the API/SSE are both served by the same backend port (default `:8787`), and the live activity stream connects **same-origin** by default. So there is no need to set `NEXT_PUBLIC_SSE_BASE` separately: expose only 443 to the public network and keep 8787 internal.
 
-SSE holds a long-lived connection and keeps pushing events, so you **must disable buffering** in the reverse proxy. If you don't, the browser connects but receives no events (the activity stream appears stuck loading). An Nginx configuration example is in [`README.zh.md`](README.zh.md#反向代理部署https--只开放-443).
+SSE holds a long-lived connection and keeps pushing events, so you **must disable buffering** in the reverse proxy. If you don't, the browser connects but receives no events (the activity stream appears stuck loading). Nginx example:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name your.domain.com;
+    # ssl_certificate / ssl_certificate_key ...
+
+    location / {
+        proxy_pass http://127.0.0.1:8787;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # SSE essentials: no buffering, long timeout, HTTP/1.1
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
+}
+```
+
+> Set `NEXT_PUBLIC_SSE_BASE` **at build time** only when SSE must come from a different origin than the page (for example a separate subdomain); the value is baked into the static bundle by `next build` and has no effect if set at container runtime.
+
+The full Nginx example is also in [`README.zh.md`](README.zh.md#反向代理部署https--只开放-443).
 
 ---
 
 ## System architecture
 
-ARTEX is an **autonomous penetration system driven by LLM multi-agents.** It uses a single Go backend (with the Next.js frontend embedded) over PostgreSQL, and the agent capabilities are provided by the [`norma`](https://github.com/Autumn-27/norma) SDK. At its core is a **dual-graph structure** and the two autonomy mechanisms around it: process-level information exchange between workers, and the planner's multi-round shared todolist.
+ARTEX is an **autonomous penetration system driven by LLM multi-agents.** It uses a single Go backend (with the Next.js frontend embedded) over PostgreSQL, and the agent capabilities are provided by the [`norma`](https://github.com/Autumn-27/norma) SDK (`agentcore` / `tool` / `permission` / `harness` / `memory` / `transcript`). At its core is a **dual-graph structure** and the two autonomy mechanisms around it: process-level information exchange between workers, and the planner's multi-round shared todolist.
 
 ### Overall layers
 
@@ -299,12 +313,14 @@ flowchart TB
   MA -.-> EXT
 ```
 
-- **Frontend** — the Next.js static build is embedded into the single binary with `go:embed`. It visualizes tasks, assets, exploration chains, and the coverage graph, and provides the human-in-the-loop chat.
-- **server** — handles `net/http` routing, JWT auth, and SSE; the `Manager` owns the lifecycle of tasks, engines, and the DB store.
-- **engine** — per task, runs one `plannerLoop` and N worker goroutines, handling intent assignment, timeouts, pause, and drain.
-- **agent** — split into goals / planner / worker / mainagent; the `ToolSet` exposes the dual graph as LLM tools.
-- **db** — stores the dual graph in PostgreSQL (pgx); the schema embedded via `go:embed` idempotently creates the tables on every startup.
-- **support** — the recording MITM proxy, the approval gate, async enrichment, and MCP / skills / memory / report.
+| Layer | Responsibility |
+| --- | --- |
+| **Frontend** | Next.js static export embedded into the single binary with `go:embed`; visualizes tasks/assets/exploration chains/coverage graph, plus the human-in-the-loop chat |
+| **server** | `net/http` routing + JWT auth + SSE; the `Manager` owns the lifecycle of tasks, engines, and the DB store |
+| **engine** | Per task, one `plannerLoop` + N worker goroutines; intent claiming, timeouts, pause, drain |
+| **agent** | goals / planner / worker / mainagent; the `ToolSet` exposes the dual graph as LLM tools |
+| **db** | The dual graph in PostgreSQL (pgx); the schema embedded via `go:embed` idempotently creates the tables on every startup |
+| **support** | The recording MITM proxy, the approval gate, async enrichment, MCP / skills / memory / report |
 
 ### The dual graph: exploration graph + asset graph
 
@@ -420,17 +436,18 @@ This lets the attack chain progress reliably even in an "event-driven + stateles
 
 This repository aims to help the **defending side** understand how autonomous AI attacks work and build the capability to detect and block them. It takes the ARTEX behavior seen in the architecture above and turns it around into a **defender's view**, laying out what to observe and where to tighten.
 
-- **[Defense & Detection Guide (docs/defense-en.md)](docs/defense-en.md)** (also in [Korean](docs/defense-ko.md))
+- **[Defense & Detection Guide (docs/defense-zh.md)](docs/defense-zh.md)**
   - How autonomous AI attacks differ from traditional scanners, why they are hard to detect, and how to detect them anyway
   - The fingerprints a defender can observe (IoCs and behavioral signatures) — separated into the target view and the forensic view
-  - The entry points attackers target and the corresponding hardening (auxiliary authentication, IDOR, credential stuffing, sessions and secrets)
+  - The entry points attackers target and the corresponding hardening (auxiliary authentication and presence checks, API authorization, credential stuffing, sessions and secrets)
   - WAF/SIEM/authentication-log detection rules (pseudo-rules), a hardening checklist, and an incident-response summary
-  - Korean official channels for indicators of compromise and advisories (KISA, FSI, PIPC) and the reporting duties under Korean law
-- **[Deployable detection rules (detections/)](detections/)** — the guide's fingerprint detections shipped as ready-to-use rules: the host/log/SIEM layer as [Sigma](https://sigmahq.io) rules (atomic + correlation; use `sigma convert` for Splunk, Elasticsearch, and others), and the network layer as [Suricata](https://suricata.io) rules targeting the enrich prober and norma SDK WebFetch User-Agents.
-  - **[ATT&CK coverage layer (detections/attack/)](detections/attack/)**: a [MITRE ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/) layer (JSON) that maps the rules above to the techniques they tag, so you can see at a glance which attack behavior each rule catches. Every technique comes only from a rule's `attack.*` tags, with nothing added by guesswork.
-  - **[Machine-readable indicator list (detections/indicators/)](detections/indicators/)**: the unique fingerprints ARTEX itself emits, gathered into a single CSV (`artex_indicators.csv`) and shipped as a ready-to-import MISP event (`artex_indicators.misp.json`) as well, so you can drop them straight into a SIEM lookup table or a threat-intelligence platform (MISP, or anything that ingests the MISP format) as indicators of compromise (IoCs). Every value is a string verified in the repository source, and each row carries its source file and detection rule.
-  - **[Host triage script (detections/triage/)](detections/triage/)**: a read-only script, [`artex_host_triage.py`](detections/triage/artex_host_triage.py), for the responder standing at a single suspected host's shell with no SIEM or network sensor. It checks the same fingerprints the rules above do, plus — on the box itself — the three host/DB indicators the indicator CSV deliberately carries without a Sigma rule because they are not log- or network-observable (the server listen port, the recording-proxy endpoint, the PostgreSQL exploration schema). It runs on the standard library alone with nothing to install, and every finding is a triage lead carrying the same caveat as its indicator row, never an attribution on its own.
-  - The rules, the layer, the indicators above, and the host-triage script's self-test are all re-run and verified by the repository tests ([detections/tests/](detections/tests/)): a detection rule you cannot run is only a claim.
+  - Official channels for indicators of compromise and advisories (CNCERT/CC, the Cyberspace Administration of China, the 12377 reporting center, and — for the financial sector — the National Financial Regulatory Administration) and the reporting duties laid down by law
+- **[Defense & Detection Guide (English · docs/defense-en.md)](docs/defense-en.md)**: the same content in English, for sharing with international teams and collaborators.
+- **[Deployable detection rules (detections/README.md)](detections/README.md)** — the guide's fingerprint detections shipped as ready-to-use rules: the host/log/SIEM layer as [Sigma](https://sigmahq.io) rules (atomic + correlation; use `sigma convert` for Splunk, Elasticsearch, and others), and the network layer as [Suricata](https://suricata.io) rules targeting the enrich prober and norma SDK WebFetch User-Agents.
+  - **[ATT&CK coverage layer (detections/attack/README.md)](detections/attack/README.md)**: a [MITRE ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/) layer (JSON) that maps the rules above to the techniques they tag, so you can see at a glance which attack behavior each rule catches. Every technique comes only from a rule's `attack.*` tags, with nothing added by guesswork.
+  - **[Machine-readable indicator list (detections/indicators/README.md)](detections/indicators/README.md)**: the unique fingerprints ARTEX itself emits, gathered into a single CSV (`artex_indicators.csv`) and shipped as a ready-to-import MISP event (`artex_indicators.misp.json`) as well, so you can drop them straight into a SIEM lookup table or a threat-intelligence platform (MISP, or anything that ingests the MISP format) as indicators of compromise (IoCs). Every value is a string verified in the repository source, and each row carries its source file and detection rule.
+  - **[Host triage script (detections/triage/README.md)](detections/triage/README.md)**: a read-only script, [`artex_host_triage.py`](detections/triage/artex_host_triage.py), for the responder standing at a single suspected host's shell with no SIEM or network sensor. It checks the same fingerprints the rules above do, plus — on the box itself — the three host/DB indicators the indicator CSV deliberately carries without a Sigma rule because they are not log- or network-observable (the server listen port, the recording-proxy endpoint, the PostgreSQL exploration schema). It runs on the standard library alone with nothing to install, and every finding is a triage lead carrying the same caveat as its indicator row, never an attribution on its own.
+  - The rules, the layer, the indicators above, and the host-triage script's self-test are all re-run and verified by the repository tests ([detections/tests/README.md](detections/tests/README.md)): a detection rule you cannot run is only a claim.
 
 > This material is continually expanded. Suggest additional detection rules or hardening items as issues, and when you send a rule directly, please follow the contract in [the "Contributing detection rules and detection tests" section of the contributing guide](CONTRIBUTING.en.md#contributing-detection-rules-and-detection-tests) (ground every indicator in observable fact, state the limits, pass static validation, and include a reproducible test).
 
@@ -451,7 +468,14 @@ Local development and testing:
 
 For other development topics (such as manual vulnerability re-verification), see the "开发" (Development) section of [`README.zh.md`](README.zh.md#开发).
 
-The changes this Korean edition adds on top of upstream ARTEX are tracked in the [changelog (CHANGELOG.en.md)](CHANGELOG.en.md).
+The changes this Chinese edition adds on top of upstream ARTEX are tracked in the [changelog (CHANGELOG.en.md)](CHANGELOG.en.md).
+
+Before sending a change, run the repository's own checks:
+
+```bash
+python3 -I scripts/check-no-korean.py    # no-Korean gate
+python3 -I scripts/check-doc-links.py    # internal links / images / anchors in the docs
+```
 
 ---
 
@@ -461,7 +485,7 @@ The changes this Korean edition adds on top of upstream ARTEX are tracked in the
 
 This project is distributed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. The full terms are in the [LICENSE](LICENSE) file at the repository root.
 
-Anyone is free to use, modify, and distribute it, but **derivative works must also be released under AGPL-3.0.** In particular, if you modify this project and **provide it to users over a network (e.g., as an online service), you must make the corresponding complete source code available to those users.** This Korean edition likewise keeps AGPL-3.0.
+Anyone is free to use, modify, and distribute it, but **derivative works must also be released under AGPL-3.0.** In particular, if you modify this project and **provide it to users over a network (e.g., as an online service), you must make the corresponding complete source code available to those users.** This Chinese edition likewise keeps AGPL-3.0.
 
 > ⚠️ **Important:** an open-source license itself does not restrict how the software may be used. The "Usage restrictions" and "Disclaimer" below are an additional covenant and a serious notice that the original author requires of users — please observe them.
 
@@ -470,7 +494,7 @@ Anyone is free to use, modify, and distribute it, but **derivative works must al
 - Use this tool to **read and study the source code**, and to **verify its technical principles in a locally isolated environment.**
 - Unless the target is one you own or for which you have **explicit written authorization**, do not scan, probe, exploit, or attack any website, online service, or connected system.
 - Using it for illegal intrusion, data theft, denial of service (DoS), or any other destructive or criminal activity is strictly prohibited.
-- You must comply with all laws on network security, data protection, and computer crime in your country and region (in Korea, the 정보통신망법, 개인정보보호법, and others).
+- You must comply with all laws on network security, data protection, and computer crime in your country and region.
 
 ### Disclaimer
 
@@ -483,6 +507,6 @@ This project is provided "AS IS" without any warranty, express or implied. The o
 ## Upstream project
 
 - Upstream repository: [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX)
-- Original README (Chinese): [README.zh.md](README.zh.md)
-- Original online demo (Chinese UI): [https://artex-demo.vercel.app/](https://artex-demo.vercel.app/)
+- Upstream README (Chinese original): [README.zh.md](README.zh.md)
+- Upstream online demo (Chinese UI): [https://artex-demo.vercel.app/](https://artex-demo.vercel.app/)
 - Agent SDK: [Autumn-27/norma](https://github.com/Autumn-27/norma)

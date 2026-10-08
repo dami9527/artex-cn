@@ -25,52 +25,52 @@ const (
 	maxConversationTitleRunes    = 200
 )
 
-// 대화(채팅) 엔드포인트가 HTTP 응답으로 돌려주는 사용자 노출 문구다. 한국어 UI 에서
-// 요청이 실패하면 이 문구가 그대로 토스트로 뜨므로 한국어로 둔다. 요청 필드명
-// (agent_key·title·pinned·ids·id)·식별자(LLM·API Key·token)는 사용자가 요청을 고치는 데
-// 쓰는 값이라 원문 그대로 둔다. 用語: 配置→설정(B4c-5), agent→에이전트. %d 가 든 상수는
-// fmt.Sprintf 형식 문자열이다. 기본 대화 제목·센티넬은 아래 convDefaultTitle·
-// convAttachmentTitle 로 분리했고(F8), 재검증 사유·트랜스크립트 오류 문구는 아래
-// convRetest* 상수·transcriptErrorSummary 로 분리했다(F9). 트리거 메시지 골격은 아직
-// 이 묶음 밖이다(F10·저널 참조). 로그·주석은 BRIEF 방침상 최하위.
+// 对话(聊天)端点经 HTTP 响应返回的用户可见文案。在中文界面下
+// 请求失败时该文案会原样弹出为提示条，故写成中文。请求字段名
+// (agent_key·title·pinned·ids·id)·标识符(LLM·API Key·token)是用户修改请求时
+// 使用的值，保持原文。术语：配置→配置(B4c-5)，agent→agent。含 %d 的常量是
+// fmt.Sprintf 格式字符串。默认对话标题·哨兵已拆到下面的 convDefaultTitle·
+// convAttachmentTitle(F8)，复测原因·转录错误文案已拆到下面的
+// convRetest* 常量·transcriptErrorSummary(F9)。触发消息骨架暂不在
+// 本范围内(F10·见日志)。按 BRIEF 方针，日志·注释优先级最低。
 const (
-	convErrRequestTooLarge = "요청 본문이 너무 큽니다"
-	convErrAgentKeyEmpty   = "agent_key 는 비어 있을 수 없습니다"
-	convErrAgentKeyTooLong = "agent_key 는 최대 %d자까지 입력할 수 있습니다"
-	convErrAgentNotFound   = "에이전트를 찾을 수 없습니다"
-	convErrLLMProfile      = "지정한 LLM 설정이 존재하지 않거나 API Key 가 설정되지 않았습니다"
-	convErrTitleTooLong    = "제목은 최대 %d자까지 입력할 수 있습니다"
-	convErrTitleOrPinned   = "title 또는 pinned 중 하나 이상을 제공해야 합니다"
-	convErrTitleEmpty      = "제목은 비어 있을 수 없습니다"
-	convErrBadConvID       = "대화 id 가 올바르지 않습니다"
-	convErrIDsCount        = "ids 개수는 1에서 %d 사이여야 합니다"
-	convErrMessageEmpty    = "메시지는 비어 있을 수 없습니다"
-	convErrBusy            = "이 대화가 이전 메시지를 처리하고 있습니다. 잠시 기다려 주세요"
+	convErrRequestTooLarge = "请求正文过大"
+	convErrAgentKeyEmpty   = "agent_key 不能为空"
+	convErrAgentKeyTooLong = "agent_key 最多 %d 个字符"
+	convErrAgentNotFound   = "agent 不存在"
+	convErrLLMProfile      = "指定的 LLM 配置不存在或未设置 API Key"
+	convErrTitleTooLong    = "标题最多 %d 个字符"
+	convErrTitleOrPinned   = "至少需要提供 title 或 pinned"
+	convErrTitleEmpty      = "标题不能为空"
+	convErrBadConvID       = "对话 id 无效"
+	convErrIDsCount        = "ids 数量必须为 1-%d"
+	convErrMessageEmpty    = "消息不能为空"
+	convErrBusy            = "该会话正在处理上一条消息，请稍候"
 )
 
-// 대화 기본 제목. convDefaultTitle 은 표시 문구이자 센티넬이다. 대화를 만들 때 제목으로
-// 쓰고, 첫 사용자 메시지가 오면 제목이 비었거나 이 값일 때만 자동 제목으로 덮어쓴다
-// (sendConversationMessage). 대입하는 쪽과 비교하는 쪽이 어긋나면 자동 제목 분기가
-// 깨지므로 한 상수로 묶는다. convAttachmentTitle 은 첨부만 보낸 첫 메시지의 기본 제목이다.
+// 对话默认标题。convDefaultTitle 既是展示文案又是哨兵：创建对话时用作标题，
+// 首个用户消息到来时，仅当标题为空或等于该值才用自动标题覆盖
+// (sendConversationMessage)。赋值处与比较处若不一致，自动标题分支就会
+// 失效，故合为一个常量。convAttachmentTitle 是只发送附件时的首个消息默认标题。
 const (
-	convDefaultTitle    = "새 대화"
-	convAttachmentTitle = "첨부 메시지"
+	convDefaultTitle    = "新对话"
+	convAttachmentTitle = "附件消息"
 )
 
-// 재검증(finding_retest) 종결 사유. runConversationTurn 이 재검증 대화를 봉인할 때 쓰고,
-// finding_retests.error 컬럼에 저장돼 재검증 패널(finding-retest-panel) 의 item.error 로
-// 그대로 노출된다(사용자 노출). db/finding_retests.go 의 형제 사유(결론 미저장·서비스 재시작)도
-// 같은 컬럼·패널이라 그 파일에서 함께 한국어로 둔다. 종결 상태 값("failed"/"stopped"/
-// "completed")은 StatusLabel 로 한국어 라벨에 매핑되는 센티넬이라 ASCII 로 유지한다(F9).
+// 复测(finding_retest) 终结原因。runConversationTurn 封存复测对话时使用，
+// 存入 finding_retests.error 列，并在复测面板(finding-retest-panel) 的 item.error 中
+// 原样展示(用户可见)。db/finding_retests.go 的同类原因(结论未保存·服务重启)
+// 使用同一列·同一面板，故在该文件中一并写成中文。终结状态值("failed"/"stopped"/
+// "completed")是经 StatusLabel 映射到中文标签的哨兵，保持 ASCII(F9)。
 const (
-	convRetestFailedToStart    = "재검증을 시작하지 못했습니다"
-	convRetestStatusReadFailed = "재검증 상태를 읽지 못했습니다. 다시 시작해 주세요"
-	convRetestStoppedOrClosed  = "재검증이 중지되었거나 서비스가 종료되었습니다"
+	convRetestFailedToStart    = "复测未能启动"
+	convRetestStatusReadFailed = "复测状态读取失败，请重新发起"
+	convRetestStoppedOrClosed  = "复测已停止或服务已关闭"
 )
 
-// isDefaultConversationTitle 은 대화가 아직 자동 생성된 기본 제목(빈 값 또는
-// convDefaultTitle)을 달고 있는지 알려준다. 이 경우 첫 사용자 메시지가 제목을 자동으로
-// 덮어쓴다. 생성 기본값과 이 판정이 같은 상수를 쓰므로 둘이 어긋날 수 없다.
+// isDefaultConversationTitle 判断对话是否仍带着自动生成的默认标题(空值或
+// convDefaultTitle)。若是，首个用户消息会自动覆盖标题。创建默认值与该
+// 判断使用同一常量，故两者不会不一致。
 func isDefaultConversationTitle(title string) bool {
 	return title == "" || title == convDefaultTitle
 }
@@ -543,15 +543,15 @@ func (s *Server) conversationRunContext(id int64, busyKey string) (context.Conte
 	return ctx, cancel
 }
 
-// transcriptErrorSummary 는 실행이 실패했을 때 활동 전사(transcript)에 남기는 오류 요약을
-// 만든다. label 은 실패한 주체를 가리키며, 채팅 턴은 빈 문자열, 작업 메인 에이전트는
-// "메인 에이전트"를 넣는다. 두 전사 모두 "(…오류: …)" 형태로 같게 렌더되도록 한 곳에 모은다.
-// err 원문은 그대로 보존하고 바깥 라벨만 한국어로 둔다(F9).
+// transcriptErrorSummary 构造执行失败时写入活动转录(transcript)的错误摘要。
+// label 指出失败主体：聊天轮次传空字符串，任务主 Agent 传
+// "主 Agent"。两处转录都渲染成相同的「（…出错：…）」形式，故集中在一处。
+// err 原文原样保留，只把外层标签写成中文(F9)。
 func transcriptErrorSummary(label, errMsg string) string {
 	if label != "" {
 		label += " "
 	}
-	return "(" + label + "오류: " + errMsg + ")"
+	return "（" + label + "出错：" + errMsg + "）"
 }
 
 func (s *Server) runConversationTurn(ctx context.Context, cancel context.CancelCauseFunc, c *db.Conversation, msg, busyKey string) {
@@ -756,19 +756,19 @@ func (s *Server) nextTriggerRun(agentKey string, cfg triggerBehavior) triggeredR
 	return mergeTriggeredRuns(group)
 }
 
-// [F10/F19 경계 판정 · 두뇌 입력 보존] 아래 P3 트리거 메시지 합성부(taskContextHeader·
-// finalTriggerMessage·mergeTriggeredRuns·mergeAllRuns)가 만드는 중국어 문구는 번역하지 않고
-// 원문을 보존한다. 조립된 message 는 runTriggeredRun 에서 finalTriggerMessage(item) →
-// ca.Chat 의 user 메시지로 들어가는 에이전트 입력(두뇌)이자, 동시에 AppendConvActivity
-// (kind="user")로 전사에 노출되는 이중 용도 문자열이다. 대상: `【任务 …】`(작업 컨텍스트
-// 헤더)·`【本会话合并了…请一并处理】`(합병 안내)·`── 触发 N ──`(구분선). BRIEF 경계 #1
-// (에이전트 두뇌는 번역하지 않는다 — TSecBench 벤치마크 동작 보존)에 해당하고, 표시만
-// 한국어로 가르려면 두뇌용·전사용 두 문자열을 따로 나르도록 구조를 바꿔야 해(F16 동형)
-// 고위험·저가치라 보류한다. 합병 run 의 conversation 제목(`合并触发 · …`)은 ca.Chat 에
-// 안 들어가는 표시 전용이지만, 그 본문(위 보존 대상)이 중국어로 고정되므로 제목만 바꾸면
-// 한 대화에서 제목=한국어·본문=중국어로 섞인다(F7·F8·F12 혼재 금지) — 가치도 낮아 함께 보존.
-// 회귀 가드: trigger_merge_test.go 가 `【任务 #`·`── 触发 `·`共 N 个任务`·`【本会话合并了`·
-// `（目标：` 프레이밍을 핀한다(우발 한국어화 시 FAIL).
+// [F10/F19 边界判定 · 大脑输入保留] 下面 P3 触发器消息合成部分(taskContextHeader·
+// finalTriggerMessage·mergeTriggeredRuns·mergeAllRuns)构造的中文文案不翻译，
+// 保留原文。组装出的 message 在 runTriggeredRun 中经 finalTriggerMessage(item) →
+// ca.Chat 的 user 消息进入 agent 输入(大脑)，同时又经 AppendConvActivity
+// (kind="user")暴露在转录中，是双重用途字符串。对象：`【任务 …】`(任务上下文
+// 头部)·`【本会话合并了…请一并处理】`(合并说明)·`── 触发 N ──`(分隔线)。属于 BRIEF 边界 #1
+// (agent 大脑不翻译 — 保留 TSecBench 基准测试行为)，若只想把展示侧换成
+// 另一种语言，需要改结构把大脑用·转录用两个字符串分开搬运(与 F16 同形)，
+// 风险高·收益低，故暂缓。合并 run 的 conversation 标题(`合并触发 · …`)不进入
+// ca.Chat，仅供展示，但其正文(上面的保留对象)已固定为中文，只改标题会让
+// 同一对话内语言混杂(F7·F8·F12 禁止混杂) — 收益也低，故一并保留。
+// 回归防护：trigger_merge_test.go 钉住 `【任务 #`·`── 触发 `·`共 N 个任务`·`【本会话合并了`·
+// `（目标：` 框架(被误改成其他语言即 FAIL)。
 //
 // taskContextHeader renders a task's description/goal once. Same-task fires share
 // this block, so the scheduler no longer repeats it per event (a long task goal

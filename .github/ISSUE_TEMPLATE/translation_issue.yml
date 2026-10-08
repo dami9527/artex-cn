@@ -1,56 +1,56 @@
-name: 🌐 번역·현지화 오류
-description: 한국어 번역이 어색하거나 틀렸거나, 번역이 빠진 부분을 신고합니다.
-title: "[번역] "
+name: 🌐 翻译·本地化错误
+description: 报告中文措辞生硬、翻译错误或翻译缺失的问题。
+title: "[翻译] "
 labels: ["i18n"]
 body:
   - type: markdown
     attributes:
       value: |
-        한국어판의 품질을 높이는 데 도움을 주셔서 고맙습니다.
-        이 저장소의 현지화 방침은 **사용자에게 보이는 산출물만 한국어로 바꾸고, 에이전트의 내부 추론 프롬프트와 명령·페이로드·코드·로그 원문은 원문 그대로 둔다**는 것입니다.
-        자세한 원칙은 [CONTRIBUTING.md](https://github.com/jiwoochris/artex-ko/blob/main/CONTRIBUTING.md#현지화-방침)에 있습니다.
+        感谢你帮助提升中文版的质量。
+        本仓库的本地化方针是：**只把面向用户的产出统一为简体中文，智能体的内部推理提示词以及命令、payload、代码、日志原文一律保持原样。**
+        详细原则见 [CONTRIBUTING.md](https://github.com/dami9527/artex-cn/blob/main/CONTRIBUTING.md#本地化方针)。
   - type: dropdown
     id: kind
     attributes:
-      label: 어떤 종류의 문제인가요
+      label: 属于哪类问题
       options:
-        - 번역이 어색하거나 부자연스러움
-        - 번역이 틀렸음 (의미가 다름)
-        - 번역이 빠졌음 (여전히 중국어·영어로 보임)
-        - 번역하면 안 되는 것이 번역됨 (명령·코드·로그 등)
-        - 용어 통일 필요
+        - 措辞生硬或不自然
+        - 翻译错误（含义不同）
+        - 翻译缺失（仍显示英文等原文）
+        - 不该翻译的内容被翻译了（命令、代码、日志等）
+        - 术语需要统一
     validations:
       required: true
   - type: dropdown
     id: where
     attributes:
-      label: 어디에서 보이나요
+      label: 在哪里看到的
       options:
-        - 웹 UI
-        - 에이전트 산출물 (탐지 결과·요약·리포트·대화 응답)
-        - 문서 (README 등)
-        - 기타
+        - Web UI
+        - 智能体产出（检测结果·摘要·报告·对话回复）
+        - 文档（README 等）
+        - 其他
     validations:
       required: true
   - type: textarea
     id: current
     attributes:
-      label: 현재 문구
-      description: 지금 보이는 문구를 그대로 붙여 주십시오. 어느 화면·어느 상황인지도 적어 주시면 좋습니다.
+      label: 当前文案
+      description: 请把现在看到的文案原样贴出来，并写明是哪个界面、什么情况下出现的。
     validations:
       required: true
   - type: textarea
     id: suggestion
     attributes:
-      label: 제안하는 문구
-      description: 어떻게 바꾸면 좋을지 제안해 주십시오. (선택)
+      label: 建议文案
+      description: 请提出你建议的改法。（可选）
     validations:
       required: false
   - type: input
     id: key
     attributes:
-      label: 메시지 키 / 파일 위치
-      description: 아는 경우에만. 예를 들어 web/messages/ko.json 의 키나 파일 경로를 적어 주십시오.
-      placeholder: "예: web/messages/ko.json → dashboard.title"
+      label: 消息键 / 文件位置
+      description: 知道才填。例如 web/messages/zh.json 里的键，或文件路径。
+      placeholder: "例如：web/messages/zh.json → dashboard.title"
     validations:
       required: false

@@ -14,8 +14,8 @@ const nextConfig = {
   turbopack: { root: fileURLToPath(new URL(".", import.meta.url)) },
   reactCompiler: true,
   experimental: {
-    // app/global-not-found.tsx 를 켠다. 정적 내보내기가 만드는 최상위 404.html 에는
-    // app/not-found.tsx 가 쓰이지 않아(Next 기본 영어 페이지가 나간다) 이 플래그가 필요하다.
+    // 启用 app/global-not-found.tsx。静态导出产出的顶层 404.html 不会使用
+    // app/not-found.tsx（会输出 Next 默认的英文页面），所以需要这个开关。
     globalNotFound: true,
   },
   // 允许从局域网 IP 访问 dev 资源（HMR），按需增删。
@@ -46,8 +46,8 @@ const nextConfig = {
         }),
 };
 
-// next-intl 플러그인. 요청 설정은 src/i18n/request.ts 에 둔다. i18n 경로 라우팅을
-// 쓰지 않으므로 미들웨어는 추가하지 않는다(정적 내보내기 output: "export" 와 호환).
+// next-intl 插件。请求配置放在 src/i18n/request.ts。不使用 i18n 路径路由，
+// 因此不添加中间件（与静态导出 output: "export" 兼容）。
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 export default withNextIntl(nextConfig);

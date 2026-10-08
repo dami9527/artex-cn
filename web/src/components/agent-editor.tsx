@@ -96,25 +96,25 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
       .mcpServers()
       .then(setMcp)
       .catch(() => {
-        /* 조회 실패는 무시하고 기본 상태를 유지한다 */
+        /* 查询失败直接忽略，保持默认状态 */
       });
     api
       .skills()
       .then(setSkills)
       .catch(() => {
-        /* 조회 실패는 무시하고 기본 상태를 유지한다 */
+        /* 查询失败直接忽略，保持默认状态 */
       });
     api
       .tools()
       .then(setTools)
       .catch(() => {
-        /* 조회 실패는 무시하고 기본 상태를 유지한다 */
+        /* 查询失败直接忽略，保持默认状态 */
       });
     api
       .settings()
       .then(setSettings)
       .catch(() => {
-        /* 조회 실패는 무시하고 기본 상태를 유지한다 */
+        /* 查询失败直接忽略，保持默认状态 */
       });
   }, []);
   // global gates: traffic tools need 流量捕获, web search needs the master switch.
@@ -293,7 +293,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
         .tools()
         .then(setTools)
         .catch(() => {
-          /* 재조회 실패는 무시한다 */
+          /* 重新查询失败直接忽略 */
         });
     }
   }
@@ -503,7 +503,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
                   <span className="text-muted-foreground truncate flex-1">{ver.note}</span>
                   {ver.ts && (
                     <span className="text-muted-foreground/60 shrink-0 tabular-nums">
-                      {new Date(ver.ts).toLocaleDateString("ko-KR", {
+                      {new Date(ver.ts).toLocaleDateString("zh-CN", {
                         month: "2-digit",
                         day: "2-digit",
                         hour: "2-digit",
@@ -546,7 +546,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
                   {viewVer?.note || tr("version.noNote")}
                   {viewVer?.ts && (
                     <span className="ml-2 text-muted-foreground/60">
-                      {new Date(viewVer.ts).toLocaleString("ko-KR")}
+                      {new Date(viewVer.ts).toLocaleString("zh-CN")}
                     </span>
                   )}
                 </DialogDescription>

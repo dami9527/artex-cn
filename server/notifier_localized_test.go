@@ -10,14 +10,14 @@ import (
 	"github.com/Autumn-27/artex/db"
 )
 
-// TestNotifierDeliveryReasonsLocalized guards F17: every delivery failure/defer
-// reason that notifier.go writes into notification_deliveries.last_error — which
-// notify_api.go echoes back to the "전달 기록" table in delivery-list.tsx — must be
-// Korean (Hangul present, no Chinese Han). Diagnostic log.Printf lines stay in the
-// original language (Z2) and are intentionally not covered here.
+// TestNotifierDeliveryReasonsLocalized 是 F17 的守卫：notifier.go 写入
+// notification_deliveries.last_error 的每一条投递失败/延后原因 —— 这些文案
+// notify_api.go 会回显到 delivery-list.tsx 的「投递记录」表格 —— 必须是
+// 简体中文(含汉字、不含谚文)。诊断性 log.Printf 保持
+// 原文(Z2)，这里刻意不覆盖。
 func TestNotifierDeliveryReasonsLocalized(t *testing.T) {
-	// Format every constant with ASCII arguments so any leftover Han ideograph is
-	// the constant's own, not injected by the test data.
+	// 用 ASCII 参数格式化每个常量，这样残留的谚文只可能
+	// 来自常量本身，而不是测试数据注入的。
 	cases := []struct {
 		label string
 		msg   string
@@ -32,41 +32,41 @@ func TestNotifierDeliveryReasonsLocalized(t *testing.T) {
 		{"batchAllUnparseable", fmt.Sprintf(errDeliveryBatchAllUnparseable, 2)},
 	}
 	for _, c := range cases {
-		assertKoreanError(t, c.label, c.msg)
+		assertChineseError(t, c.label, c.msg)
 	}
 }
 
-// TestNotifierParseSnapshotErrorsLocalized exercises the real parseSnapshot paths
-// that surface as last_error through renderSingle → FailDeliveries. parseSnapshot is
-// a package-level pure function, so no DB or Server is needed.
+// TestNotifierParseSnapshotErrorsLocalized 走真实的 parseSnapshot 路径，
+// 这些路径经 renderSingle → FailDeliveries 呈现为 last_error。parseSnapshot 是
+// 包级纯函数，因此不需要 DB 或 Server。
 func TestNotifierParseSnapshotErrorsLocalized(t *testing.T) {
-	// Empty snapshot.
+	// 空快照。
 	if _, err := parseSnapshot(&db.NotificationDelivery{ID: 7}); err == nil {
-		t.Fatal("빈 스냅샷이 오류 없이 통과해서는 안 됩니다")
+		t.Fatal("空快照不应无错通过")
 	} else {
-		assertKoreanError(t, "parseSnapshot.empty", err.Error())
+		assertChineseError(t, "parseSnapshot.empty", err.Error())
 		if !strings.Contains(err.Error(), "7") {
-			t.Fatalf("parseSnapshot.empty: 전달 항목 ID 7 이 메시지에 없습니다: %q", err.Error())
+			t.Fatalf("parseSnapshot.empty: 文案里没有投递条目 ID 7: %q", err.Error())
 		}
 	}
-	// Malformed JSON snapshot.
+	// 损坏的 JSON 快照。
 	if _, err := parseSnapshot(&db.NotificationDelivery{ID: 9, Snapshot: []byte("{bad")}); err == nil {
-		t.Fatal("깨진 JSON 스냅샷이 오류 없이 통과해서는 안 됩니다")
+		t.Fatal("损坏的 JSON 快照不应无错通过")
 	} else {
-		assertKoreanError(t, "parseSnapshot.malformed", err.Error())
+		assertChineseError(t, "parseSnapshot.malformed", err.Error())
 	}
 }
 
-// TestNotifierRenderBatchAllUnparseableLocalized drives the real renderBatch "every
-// snapshot is unparseable" branch. With all snapshots empty, every delivery is
-// skipped before itemFor (and thus before n.pg), so a zero-value Notifier reaches
-// the errDeliveryBatchAllUnparseable return without touching the database.
+// TestNotifierRenderBatchAllUnparseableLocalized 驱动 renderBatch 真实的
+// 「所有快照都无法解析」分支。快照全为空时，每条投递都在
+// itemFor 之前(因而也在 n.pg 之前)被跳过，因此零值 Notifier 就能到达
+// errDeliveryBatchAllUnparseable 返回，不触碰数据库。
 func TestNotifierRenderBatchAllUnparseableLocalized(t *testing.T) {
 	n := &Notifier{}
 	deliveries := []*db.NotificationDelivery{{ID: 1}, {ID: 2}}
 	if _, _, err := n.renderBatch(context.Background(), deliveries, "", 30); err == nil {
-		t.Fatal("모든 스냅샷이 해석 불가일 때 오류가 나와야 합니다")
+		t.Fatal("所有快照都无法解析时必须报错")
 	} else {
-		assertKoreanError(t, "renderBatch.allUnparseable", err.Error())
+		assertChineseError(t, "renderBatch.allUnparseable", err.Error())
 	}
 }

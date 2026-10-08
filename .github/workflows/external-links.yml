@@ -1,20 +1,19 @@
 name: external-links
-# 추적 마크다운이 가리키는 외부 링크(방어 가이드의 사고 신고 창구 boho.or.kr·privacy.go.kr·
-# pipc.go.kr·fsec.or.kr, CISA KEV, OWASP·SigmaHQ·Suricata·MITRE·MISP, 원본 데모, GitHub
-# 배지 등)가 아직 살아 있는지 점검한다. 외부 URL 생존은 네트워크·원격 서버 정책에 의존해
-# flaky 하므로 내부 링크 머지 게이트(docs.yml)에서는 보지 않는다. 그래서 이 워크플로는
-# 푸시·PR 이 아니라 주간 스케줄과 수동 실행(workflow_dispatch)으로만 돌아 **머지를 막지 않고**,
-# 외부 링크가 변질·폐쇄되면 주기 실행이 빨갛게 드러낸다. 내부 링크·앵커는 docs.yml, Go 빌드·
-# 분석·테스트는 ci.yml, 탐지 규칙은 detections.yml, 한국어 UI 빌드는 web.yml 이 맡는다.
+# 检查受跟踪的 Markdown 所指向的外部链接（防御指南里的事件报告渠道 cert.org.cn、
+# cac.gov.cn、12377.cn，CISA KEV，OWASP、SigmaHQ、Suricata、MITRE、MISP，原始演示，
+# GitHub 徽章等）是否仍然存活。外部 URL 的存活依赖网络与远端服务器策略、容易
+# flaky，因此不放进内部链接合并门禁（docs.yml）。所以本工作流不在推送与 PR 时跑，
+# 只按每周计划与手动触发（workflow_dispatch）运行，**不阻塞合并**；外部链接一旦失效或
+# 被关停，周期性运行会显红。内部链接与锚点由 docs.yml 负责，Go 构建、分析、测试由
+# ci.yml 负责，检测规则由 detections.yml 负责，中文 UI 构建由 web.yml 负责。
 #
-# --strict 는 allowlist(scripts/external-links-allowlist.txt)에 없는 DOWN(404·410·5xx·
-# DNS/연결 오류)이 하나라도 있을 때만 실패한다. RESTRICTED(봇 차단·속도 제한 등 호스트는
-# 살아 있는 상태)와 ALLOWED(우리가 고칠 수 없는 상류 상속 죽은 링크)는 실패로 치지 않으므로,
-# 빨간불은 "우리 문서가 큐레이션한 외부 링크가 새로 깨졌다 — 가서 보라"는 신호다. 스케줄
-# 워크플로는 기본 브랜치(main)에서만 돈다.
+# --strict 只在出现 allowlist（scripts/external-links-allowlist.txt）之外的 DOWN
+# （404、410、5xx、DNS/连接错误）时才失败。RESTRICTED（机器人拦截、限速等，主机仍
+# 存活）与 ALLOWED（我们无法修复的上游继承死链）不算失败，因此红灯的信号是
+# 「我们文档精心维护的外部链接又断了 —— 去看看」。计划工作流只在默认分支（main）上跑。
 on:
   schedule:
-    - cron: "17 0 * * 1" # 매주 월요일 00:17 UTC
+    - cron: "17 0 * * 1" # 每周一 00:17 UTC
   workflow_dispatch:
 
 permissions:
@@ -30,7 +29,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      # python3 는 ubuntu-latest 러너에 기본 설치돼 있고 스크립트는 표준 라이브러리만
-      # 쓰므로 별도 설치가 없다. -I 로 사용자 사이트·환경을 격리해 실행한다.
-      - name: 외부 링크 생존 점검 (브라우저 UA·GET·리다이렉트 추적 · allowlist 제외 · 머지 비차단)
+      # python3 是 ubuntu-latest runner 自带的，脚本又只用标准库，因此无需额外安装。
+      # 用 -I 隔离用户 site 与环境后执行。
+      - name: 外部链接存活检查（浏览器 UA、GET、跟随重定向 · 排除 allowlist · 不阻塞合并）
         run: python3 -I scripts/check-external-links.py --strict

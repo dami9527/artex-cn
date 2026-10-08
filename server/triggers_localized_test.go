@@ -2,10 +2,10 @@ package server
 
 import "testing"
 
-// triggers.go 의 트리거 설정 검증 오류 문구를 한국어로 유지하는 회귀 방어 테스트다.
-// 한국어 판정은 F3a 가 만든 assertKoreanError(한글 포함·중국어 한자 0)를 재사용한다.
+// 回归防御测试：保证 triggers.go 的触发器配置校验错误文案为简体中文。
+// 中文判定复用 F3a 的 assertChineseError(含汉字·无谚文)。
 
-// TestTriggerErrorConstantsLocalized 는 오류 상수 3종이 전부 한국어임을 단언한다.
+// TestTriggerErrorConstantsLocalized 断言 3 个错误常量全部为简体中文。
 func TestTriggerErrorConstantsLocalized(t *testing.T) {
 	cases := []struct {
 		name string
@@ -16,24 +16,24 @@ func TestTriggerErrorConstantsLocalized(t *testing.T) {
 		{"custom_only", errTriggerCustomOnly},
 	}
 	for _, c := range cases {
-		assertKoreanError(t, c.name, c.msg)
+		assertChineseError(t, c.name, c.msg)
 	}
 }
 
-// TestValidateTriggerLocalized 는 validateTrigger 순수 함수를 실제로 호출해, 조건 누락·도구
-// 미선택 경로가 한국어 상수를 돌려주고 유효 입력은 빈 문자열을 돌려줌을 확인한다. 이 반환값은
-// pgCreateTrigger·pgUpdateTrigger 가 writeErr(400, msg) 로 사용자에게 그대로 노출한다.
+// TestValidateTriggerLocalized 真正调用 validateTrigger 纯函数，确认条件缺失·工具
+// 未选择两条路径返回中文常量，而合法输入返回空字符串。这个返回值会被
+// pgCreateTrigger·pgUpdateTrigger 以 writeErr(400, msg) 原样暴露给用户。
 func TestValidateTriggerLocalized(t *testing.T) {
 	if msg := validateTrigger(&triggerReq{}); msg != errTriggerNoCondition {
-		t.Fatalf("조건 누락 문구 = %q, 기대 = %q", msg, errTriggerNoCondition)
+		t.Fatalf("条件缺失文案 = %q, 期望 = %q", msg, errTriggerNoCondition)
 	}
 	if msg := validateTrigger(&triggerReq{OnToolCall: true}); msg != errTriggerToolSetEmpty {
-		t.Fatalf("도구 미선택 문구 = %q, 기대 = %q", msg, errTriggerToolSetEmpty)
+		t.Fatalf("工具未选择文案 = %q, 期望 = %q", msg, errTriggerToolSetEmpty)
 	}
 	if msg := validateTrigger(&triggerReq{OnFinding: true}); msg != "" {
-		t.Fatalf("유효 입력 문구 = %q, 기대 = 빈 문자열", msg)
+		t.Fatalf("合法输入文案 = %q, 期望为空字符串", msg)
 	}
 	if msg := validateTrigger(&triggerReq{OnToolCall: true, ToolNames: []string{"nmap"}}); msg != "" {
-		t.Fatalf("유효 도구 호출 문구 = %q, 기대 = 빈 문자열", msg)
+		t.Fatalf("合法工具调用文案 = %q, 期望为空字符串", msg)
 	}
 }

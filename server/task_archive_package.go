@@ -26,17 +26,17 @@ const (
 	maxArchiveBytes = int64(1 << 47) // 128 TiB safety ceiling for corrupt headers.
 )
 
-// errArchiveStagedAndOriginalCoexist 는 보관 패키지를 삭제하려 임시 파일로 옮기는 과정에서
-// 원본 파일과 삭제 임시 파일(.deleting-N)이 동시에 존재하는 모순 상태를 사용자에게 알린다.
+// errArchiveStagedAndOriginalCoexist 提示用户：把归档包移到临时文件以便删除的过程中，
+// 原文件与删除暂存文件(.deleting-N)同时存在，处于矛盾状态。
 //
-// 호출 그래프 판정(사용자 노출 전용): stageTaskArchivePackageDelete(아래 506행) →
-// deleteTaskArchive(task_archives.go:400) → 백그라운드 아카이브 워커 runOneTaskArchiveJob
-// (task_archives.go:102) → FailTaskArchiveJob 이 task_archives.error 컬럼에 저장
-// (db/task_archives.go:435) → API 가 TaskArchive.Error("error" JSON)로 노출 →
-// tasks/page.tsx 의 TaskArchivesPanel 이 {archive.error} 로 화면에 직접 표시.
-// actool·planner 되먹임 경로 0(두뇌 입력 아님)이라 한국어화한다. 같은 전파 경로의 형제 오류
-// (archiveTask 의 task_archives.go:120·132·173, validateArchivePath 의 421·433)도 이미 한국어다.
-const errArchiveStagedAndOriginalCoexist = "보관 패키지의 원본 파일과 삭제 임시 파일이 동시에 존재합니다"
+// 调用链判定(用户可见专用): stageTaskArchivePackageDelete(下方 506 行) →
+// deleteTaskArchive(task_archives.go:400) → 后台归档 worker runOneTaskArchiveJob
+// (task_archives.go:102) → FailTaskArchiveJob 写入 task_archives.error 列
+// (db/task_archives.go:435) → API 通过 TaskArchive.Error("error" JSON) 暴露 →
+// tasks/page.tsx 的 TaskArchivesPanel 用 {archive.error} 直接显示在界面上。
+// actool·planner 回馈路径为 0(不是模型输入)。同一传播路径上的兄弟错误
+// (archiveTask 的 task_archives.go:120·132·173，validateArchivePath 的 421·433)也已经是中文。
+const errArchiveStagedAndOriginalCoexist = "归档包原文件和删除暂存文件同时存在"
 
 type archiveFileMove struct {
 	Source   string `json:"source"`

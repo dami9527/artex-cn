@@ -11,7 +11,11 @@ AI 自主渗透测试系统（Go 后端 + Next.js 前端）
 
 ---
 
-> ⚠️ **安全与合规提示（韩语本地化版本）**：本仓库是 [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX) 的韩语本地化 fork，仅供在获得授权的环境中、以防御与检测为目的使用。2026 年 10 月有韩国媒体报道称，调查机构在针对韩国金融机构的个人信息泄露事件中发现了 ARTEX 被使用的迹象（调查进行中）。请勿对未经书面授权的系统进行扫描、探测或利用。完整警告请见 [README.md（한국어）](README.md) 与 [README.en.md（English）](README.en.md)。
+> ⚠️ **安全与合规提示（简体中文版）**：本仓库是 [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX)（AGPL-3.0）的中文本地化版本，仅供在获得授权的环境中、以防御与检测为目的使用。自主攻击工具一旦被滥用，可能直接造成个人信息泄露等实际危害，并带来相应的法律责任。请勿对未经书面授权的系统进行扫描、探测或利用，使用时须遵守《网络安全法》《数据安全法》《个人信息保护法》等法律法规。完整警告请见 [README.md（中文）](README.md) 与 [README.en.md（English）](README.en.md)。
+
+---
+
+> ⚠️ 本文是上游 ARTEX 的中文原文，**其「安装」「更新升级」等章节描述的是上游流程，在本仓库已不适用**：本仓库不发布镜像（`autumn27/artex` 已从 Docker Hub 下架），`ARTEX_TAG` 已被 `ARTEX_IMAGE` 取代。本仓库请按 [`README.md`](README.md) 的「快速开始」与「自行构建中文版镜像」操作（`cp .env.example .env` → `./build-image.sh`）。
 
 ---
 

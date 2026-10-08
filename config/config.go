@@ -108,24 +108,21 @@ func Load() Config {
 	return c
 }
 
-// Locale 은 UI 표시 언어를 정한다(기본 "ko").
+// Locale 返回 UI 显示语言，本仓库固定为简体中文，因此一律返回 "zh"。
 //
-// 웹 UI 의 locale 은 정적 내보내기 시점에 HTML 에 박히므로(web/src/i18n/config.ts 의
-// NEXT_PUBLIC_LOCALE) 서버가 알 수 없다. 그런데 서버가 **DB 에 시드하는 표시 이름**
-// (reporter·retester 같은 내장 agent 이름)도 화면에 그대로 나가므로, 런타임 언어를
-// 별도로 받아야 한다. 배포 스크립트(build-image.sh)가 빌드한 locale 을 그대로
-// ARTEX_LOCALE 로 넘겨 두 값이 어긋나지 않게 한다.
+// 取值口径只有 "zh"：ARTEX_LOCALE 设成什么（含未设置）都回落到 "zh"，
+// 不存在 ko 分支。
 //
-// 지원 값은 "ko"·"zh" 이며, 그 밖의 값이나 미설정은 기본 "ko"(이 저장소는 한국어판).
-// 시드 이름은 한 번만 들어가므로, 값을 바꾼 뒤에는 재기동이 필요하다(이미 만들어진
-// agent 는 사용자가 UI 에서 고쳤을 수 있어 덮어쓰지 않는다).
+// web UI 的 locale 在静态导出时就写死进 HTML（web/src/i18n/config.ts 的
+// NEXT_PUBLIC_LOCALE），服务器无从得知。而服务器**写入 DB 的显示名称**
+// （reporter、retester 这类内置 agent 名）同样会显示在界面上，所以运行时语言
+// 需要单独获取。部署脚本（build-image.sh）把构建时的 locale 原样通过
+// ARTEX_LOCALE 传进来，避免两处取值不一致。
+//
+// 种子名称只写入一次，改值后需要重启（已创建的 agent 可能被用户在 UI 中改过，
+// 不覆盖）。
 func Locale() string {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("ARTEX_LOCALE"))) {
-	case "zh":
-		return "zh"
-	default:
-		return "ko"
-	}
+	return "zh"
 }
 
 // SkillDir returns the skill root directory with precedence:
@@ -156,16 +153,16 @@ func SkillDir() string {
 // DSN came from (for startup logging).
 func PostgresDSN() (dsn, source string, err error) {
 	if v := strings.TrimSpace(os.Getenv("ARTEX_PG_DSN")); v != "" {
-		return v, "환경 변수 ARTEX_PG_DSN", nil
+		return v, "环境变量 ARTEX_PG_DSN", nil
 	}
 	db := Load().Database
 	if d := strings.TrimSpace(db.DSN); d != "" {
-		return d, "설정 파일 " + Path() + " (database.dsn)", nil
+		return d, "配置文件 " + Path() + " (database.dsn)", nil
 	}
 	if db.Host != "" || db.DBName != "" || db.User != "" {
-		return db.buildDSN(), "설정 파일 " + Path() + " (database 필드)", nil
+		return db.buildDSN(), "配置文件 " + Path() + " (database 字段)", nil
 	}
-	return "", "", fmt.Errorf("데이터베이스 설정을 찾을 수 없습니다: 환경 변수 ARTEX_PG_DSN 이 설정되어 있지 않고, 설정 파일 %s 에도 database (dsn 또는 host/user/dbname) 설정이 없습니다. 설정 파일을 만들거나 환경 변수를 설정한 뒤 다시 시도하세요", Path())
+	return "", "", fmt.Errorf("未找到数据库配置：环境变量 ARTEX_PG_DSN 未设置，且配置文件 %s 未提供 database（dsn 或 host/user/dbname）。请创建该配置文件或设置环境变量后重试", Path())
 }
 
 func (d Database) buildDSN() string {

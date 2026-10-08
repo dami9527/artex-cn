@@ -13,24 +13,22 @@ import (
 	"unicode/utf8"
 
 	"github.com/Autumn-27/artex/agent"
-	"github.com/Autumn-27/artex/config"
 	"github.com/Autumn-27/artex/db"
 	"github.com/Autumn-27/artex/intercept"
 	actool "github.com/Autumn-27/norma/tool"
 )
 
-// 사용자 노출 HTTP 에러 응답 문구. 아래 네 문구는 startFindingRetest HTTP 핸들러에서만
-// 반환되고 에이전트 도구 경로(findingRetestTools 의 roTool/wrTool 설명·파라미터 설명·
-// actool.Errorf)에는 닿지 않으므로 한국어로 번역한다. 반대로 도구 설명
-// (get_finding_retest_context·record_finding_retest_result)·파라미터 설명·
-// actool.Errorf(153행 회차 미연결 안내)와 seedFindingRetester 의 DB 시드 에이전트
-// 이름(漏洞复测)·프로필·note(内置默认)는 에이전트가 읽는 두뇌 입력이거나 시드라
-// 원문을 보존한다(각 지점 주석 참조, F16 두뇌 경계 계열).
+// 用户可见的 HTTP 错误响应文案。下面四条只在 startFindingRetest HTTP 处理器里返回，
+// 不会走到 agent 工具路径(findingRetestTools 的 roTool/wrTool 描述、参数描述、
+// actool.Errorf)。反过来说，工具描述(get_finding_retest_context·
+// record_finding_retest_result)、参数描述、actool.Errorf(153 行轮次未关联提示)
+// 以及 seedFindingRetester 的 DB 种子 agent 名称(漏洞复测)、profile、note(内置默认)
+// 都是 agent 读到的模型输入或种子数据，保持原文(见各点注释，F16 模型边界系列)。
 const (
-	errFindingRetestNotesTooLong    = "재검증 보충 설명은 최대 4000자까지 입력할 수 있습니다"
-	errFindingRetestAgentMissing    = "취약점 재검증 에이전트가 없거나 비활성화되어 있습니다. 에이전트 관리에서 retester 를 설정하세요"
-	errFindingRetestToolRequired    = "재검증 에이전트에 도구를 활성화하고 연결하세요: "
-	errFindingRetestServiceStopping = "서비스가 종료 중입니다"
+	errFindingRetestNotesTooLong    = "复测补充说明最多 4000 个字符"
+	errFindingRetestAgentMissing    = "漏洞复测 Agent 不存在或未启用，请在 Agent 管理中配置 retester"
+	errFindingRetestToolRequired    = "请为复测 Agent 启用并绑定工具："
+	errFindingRetestServiceStopping = "服务正在停止"
 )
 
 func (s *Server) listActiveFindingRetests(w http.ResponseWriter, r *http.Request) {
@@ -206,19 +204,14 @@ func (s *Server) findingRetestTools() []actool.CoreTool {
 
 // Seed the editable agent atomically, without an automatic discovery trigger.
 // Once seeded, user edits/deletion survive restarts; a pre-existing key is kept.
-// retester(취약점 재검증) 에이전트의 표시 전용 라벨. system/agents·대화 선택기 화면에만
-// 렌더되고 어떤 프롬프트에도 들어가지 않는다(도구 설명·파라미터 설명·actool.Errorf 같은
-// 두뇌 입력은 위 상단 주석대로 원문 보존). 런타임 locale(config.Locale)에 따라 고른다.
-const retesterAgentName = "취약점 재검증"
-const retesterAgentDescription = "취약점 상세 화면에서 수동으로 시작하며, 원래 증거를 읽고 독립적인 재검증 결론을 저장합니다."
-const retesterAgentNameZh = "漏洞复测"
-const retesterAgentDescriptionZh = "从漏洞详情手动启动，读取原证据并保存独立复测结论。"
+// retester(漏洞复测) agent 的展示专用标签。只渲染在 system/agents 和对话选择器界面上，
+// 不会进入任何提示词(工具描述、参数描述、actool.Errorf 等模型输入按上方注释保持原文)。
+// 界面语言固定为简体中文，没有 locale 分支。
+const retesterAgentName = "漏洞复测"
+const retesterAgentDescription = "从漏洞详情手动启动，读取原证据并保存独立复测结论。"
 
-// retesterAgentLabels 는 런타임 locale 에 맞는 retester 표시 라벨을 돌려준다.
+// retesterAgentLabels 返回 retester 的展示标签。种子写入与测试共用这一处取值。
 func retesterAgentLabels() (name, desc string) {
-	if config.Locale() == "zh" {
-		return retesterAgentNameZh, retesterAgentDescriptionZh
-	}
 	return retesterAgentName, retesterAgentDescription
 }
 

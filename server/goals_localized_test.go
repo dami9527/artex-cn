@@ -2,18 +2,18 @@ package server
 
 import "testing"
 
-// goals.go 의 작업 재개(admitPausedTask) 사전 조건 검증 오류 문구를 한국어로 유지하는
-// 회귀 방어 테스트다. 한국어 판정은 F3a 가 만든 assertKoreanError(한글 포함·중국어
-// 한자 0)를 재사용한다. 두 문구를 반환하는 admitTaskWhen(requirePaused=true) 경로는
-// s.concMu 잠금 뒤 s.m.Task()·s.engine.IsDeleting()·beginTaskOperation() 엔진 게이트를
-// 지나므로 DB·엔진 없는 이 호스트에서 끝까지 돌 수 없어, 상수 자체를 핀 고정한다
-// (finding_retests·finding_traffic 의 게이트 뒤 경로와 같은 방식). 누군가 이 리터럴을
-// 중국어로 되돌리면 이 테스트가 실패한다.
+// 回归防御测试：保证 goals.go 的任务恢复(admitPausedTask)前置条件校验错误文案
+// 为简体中文。中文判定复用 F3a 的 assertChineseError(含汉字·
+// 无谚文)。返回那两条文案的 admitTaskWhen(requirePaused=true) 路径要经
+// s.concMu 锁之后的 s.m.Task()·s.engine.IsDeleting()·beginTaskOperation() 引擎关卡，
+// 在没有 DB·引擎的本机跑不完，因此直接固定常量本身
+// (与 finding_retests·finding_traffic 关卡后的路径同样处理)。一旦有人把这个字面量
+// 改回非中文文案，本测试即失败。
 //
-// 호출 그래프 판정(goals.go 상수 블록 주석 참조): 두 문구는 단건(server.go:1194 →
-// writeErr 409)·배치(task_control.go:298 → items[].error) 작업 제어 응답으로만 노출되는
-// 사용자 전용이다. 오케스트레이터 경로(orchestration.go:343)는 action="pause" 로 고정이라
-// 재개 검증에 닿지 않으므로 두뇌 입력이 아니다.
+// 调用图判定(参见 goals.go 常量块注释)：这两条文案只经单条(server.go:1194 →
+// writeErr 409)·批量(task_control.go:298 → items[].error) 任务控制响应暴露，
+// 属于用户专用。编排器路径(orchestration.go:343)固定 action="pause"，
+// 不会触及恢复校验，因此不是大脑输入。
 func TestGoalResumeErrorsLocalized(t *testing.T) {
 	for _, c := range []struct {
 		label, msg string
@@ -21,6 +21,6 @@ func TestGoalResumeErrorsLocalized(t *testing.T) {
 		{"resume_terminal", errGoalResumeTerminal},
 		{"resume_not_paused", errGoalResumeNotPaused},
 	} {
-		assertKoreanError(t, c.label, c.msg)
+		assertChineseError(t, c.label, c.msg)
 	}
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/Autumn-27/norma/llm"
 )
 
-// hasHangul reports whether s contains any Hangul character.
+// hasHangul 判断 s 是否含有谚文字符。
 func hasHangul(s string) bool {
 	for _, r := range s {
 		if unicode.Is(unicode.Hangul, r) {
@@ -20,8 +20,8 @@ func hasHangul(s string) bool {
 	return false
 }
 
-// hasHanzi reports whether s contains any CJK (Han) character.
-func hasHanzi(s string) bool {
+// hasHan 判断 s 是否含有 CJK（汉字）字符。
+func hasHan(s string) bool {
 	for _, r := range s {
 		if unicode.Is(unicode.Han, r) {
 			return true
@@ -30,39 +30,40 @@ func hasHanzi(s string) bool {
 	return false
 }
 
-// assertSurfacedExhaustion checks the error an exhausted chain hands back: it must
-// still wrap the ErrExhausted sentinel (callers rely on errors.Is), read as a
-// Korean message (no Han characters, no full-width colon), and lead with the
-// localized sentinel text. failProv's body is ASCII ("anthropic: status 402:
-// nope"), so the whole surfaced string must be Han-free.
+// assertSurfacedExhaustion 检查整条链耗尽后交回的错误：它必须仍然包裹 ErrExhausted
+// 哨兵（调用方依赖 errors.Is）、是可读的简体中文（含汉字、用全角冒号），并以本地化后的
+// 哨兵文案开头。failProv 的内容是 ASCII（"anthropic: status 402: nope"），
+// 所以最终字符串里的汉字只能来自本地化哨兵。
 func assertSurfacedExhaustion(t *testing.T, label string, err error) {
 	t.Helper()
 	if err == nil {
-		t.Fatalf("%s: exhausted chain returned nil error", label)
+		t.Fatalf("%s: 耗尽链返回了 nil 错误", label)
 	}
 	if !errors.Is(err, ErrExhausted) {
-		t.Fatalf("%s: surfaced error no longer wraps ErrExhausted: %v", label, err)
+		t.Fatalf("%s: 交回的错误不再包裹 ErrExhausted: %v", label, err)
 	}
 	msg := err.Error()
-	if hasHanzi(msg) {
-		t.Errorf("%s: surfaced error still carries Chinese characters: %q", label, msg)
+	if !hasHan(msg) {
+		t.Errorf("%s: 交回的错误不含汉字: %q", label, msg)
 	}
-	if strings.ContainsRune(msg, '：') {
-		t.Errorf("%s: surfaced error still uses a full-width colon: %q", label, msg)
+	if hasHangul(msg) {
+		t.Errorf("%s: 交回的错误仍残留谚文: %q", label, msg)
+	}
+	if !strings.ContainsRune(msg, '：') {
+		t.Errorf("%s: 交回的错误没有使用全角冒号: %q", label, msg)
 	}
 	if !strings.HasPrefix(msg, ErrExhausted.Error()) {
-		t.Errorf("%s: surfaced error does not lead with the localized sentinel: %q", label, msg)
+		t.Errorf("%s: 交回的错误没有以本地化哨兵文案开头: %q", label, msg)
 	}
 }
 
-// The chain-exhaustion error is user-facing: a worker whose whole LLM chain fails
-// records it through agent/capture.go as a "result" activity shown in the run
-// transcript. So its text must be Korean, while its identity (errors.Is) must be
-// preserved for callers that branch on the sentinel.
+// 链耗尽错误是面向用户的：整条 LLM 链都失败的 worker 会经 agent/capture.go 把它
+// 记为 "result" 活动，展示在运行记录里。所以它的文案必须是简体中文，
+// 同时其身份（errors.Is）必须保留，供按哨兵分支的调用方使用。
 func TestExhaustedErrorLocalized(t *testing.T) {
-	assertKoreanErrText(t, "ErrExhausted", ErrExhausted.Error())
+	assertChineseErrText(t, "ErrExhausted", ErrExhausted.Error())
 
-	// Drive both surfaced paths so a future edit to either wrap site is caught.
+	// 两条上报路径都走一遍，未来改动任一 wrap 位置都会被抓到。
 	streamChain := New([]*Member{
 		member(1, "a", 10, failProv("a", 402)),
 		member(2, "b", 5, failProv("b", 402)),
@@ -78,13 +79,13 @@ func TestExhaustedErrorLocalized(t *testing.T) {
 	assertSurfacedExhaustion(t, "Complete", cerr)
 }
 
-// assertKoreanErrText fails unless s contains Hangul and no Han character.
-func assertKoreanErrText(t *testing.T, label, s string) {
+// assertChineseErrText 在 s 不含汉字或残留谚文时失败。
+func assertChineseErrText(t *testing.T, label, s string) {
 	t.Helper()
-	if !hasHangul(s) {
-		t.Errorf("%s: 한글이 없습니다: %q", label, s)
+	if !hasHan(s) {
+		t.Errorf("%s: 没有汉字: %q", label, s)
 	}
-	if hasHanzi(s) {
-		t.Errorf("%s: 중국어 한자가 남아 있습니다: %q", label, s)
+	if hasHangul(s) {
+		t.Errorf("%s: 仍残留谚文: %q", label, s)
 	}
 }

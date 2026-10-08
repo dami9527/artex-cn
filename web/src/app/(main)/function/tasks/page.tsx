@@ -203,8 +203,8 @@ function taskDuration(task: Task, nowSec: number): number {
 // aggregate accumulated over a bulk delete.
 type DeleteCounts = Omit<DeleteTaskResult, "deleted" | "cleanup_warning">;
 
-// 모듈 레벨 함수는 hook 을 호출할 수 없으므로, 번역 함수를 인자로 받아 사용자 노출
-// 문자열을 한국어로 만든다(approval-records 선례).
+// 模块级函数无法调用 hook，因此以翻译函数作为入参，把对外可见的
+// 字符串生成为中文（沿用 approval-records 的做法）。
 type Translator = ReturnType<typeof useTranslations>;
 
 function deleteDetails(t: Translator, result: DeleteCounts): string[] {
@@ -232,8 +232,8 @@ function fmtDateTime(unix?: number): string {
   return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-// 상태 필터 옵션. 라벨은 렌더 시점에 status.task 네임스페이스로 번역하므로 여기서는
-// 값(순서 포함)만 둔다.
+// 状态筛选项。标签在渲染时通过 status.task 命名空间翻译，因此这里只放
+// 取值（含顺序）。
 const STATUS_OPTIONS: readonly TaskStatus[] = ["created", "queued", "running", "paused", "done", "failed", "timeout"];
 
 // Select 不接受空字符串 value,所以「无分类」在筛选器、新建表单和批量移动里
@@ -1690,7 +1690,7 @@ function TaskArchivesPanel({ onChanged }: { onChanged: () => void }) {
         let restored = false;
         states.forEach((state, index) => {
           if (state.status !== "rejected" || !(state.reason instanceof Error)) return;
-          if (!state.reason.message.includes("보관을 찾을 수 없습니다")) return;
+          if (!state.reason.message.includes("归档不存在")) return;
           pendingRestoreIDs.current.delete(pending[index]);
           restored = true;
         });

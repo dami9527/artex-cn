@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# ARTEX 업데이트 스크립트: ① Docker 업데이트(현재 소스로 이미지를 다시 빌드해 재구성)  ② 로컬 컴파일 업데이트(바이너리 재빌드)
-# install.sh 와 짝을 이룹니다. install 은 최초 설치를, update 는 새 버전으로의 업그레이드를 담당합니다.
-# DB 마이그레이션은 직접 실행할 필요가 없습니다. artex 는 기동할 때마다 schema.sql 을 멱등하게 다시 돌리므로(ADD COLUMN/CREATE
-# INDEX IF NOT EXISTS 포함) "재시작이 곧 마이그레이션"입니다. 데이터(pgdata 볼륨, ./data, ./skills)는 영향을 받지 않습니다.
+# ARTEX 更新脚本：① Docker 更新（用当前源码重新构建镜像并重建容器）  ② 本地编译更新（重新编译二进制）
+# 与 install.sh 配对：install 负责首次安装，update 负责升级到新版本。
+# 不需要单独跑数据库迁移：artex 每次启动都会幂等地重跑 schema.sql（包含 ADD COLUMN、
+# CREATE INDEX IF NOT EXISTS），所以「重启即迁移」。数据（pgdata 卷、./data、./skills）不受影响。
 set -euo pipefail
 cd "$(cd "$(dirname "$0")" && pwd)"
 
@@ -12,65 +12,65 @@ warn(){ printf '\033[33m[!]\033[0m %s\n' "$*"; }
 die(){  printf '\033[31m[x]\033[0m %s\n' "$*" >&2; exit 1; }
 ask(){  local p="$1" d="${2:-}" a; read -rp "$p${d:+ [$d]}: " a; echo "${a:-$d}"; }
 
-# .env 를 있으면 읽어 설정(POSTGRES_PASSWORD·NEXT_PUBLIC_LOCALE 등)을 한 곳에서 관리한다.
+# 如果存在 .env 就先读入，把配置（POSTGRES_PASSWORD、NEXT_PUBLIC_LOCALE 等）集中到一处。
 load_env(){
   [ -f .env ] || return 0
-  set +u                      # set -u 상태에서 .env 의 빈 값이 오류가 되지 않게 한다
+  set +u                      # 避免 .env 里的空值在 set -u 下报错
   set -a; . ./.env; set +a
   set -u
 }
 
-# ── 선택: 저장소를 최신 코드로 동기화합니다(compose·스크립트·로컬 컴파일 소스가 모두 이걸로 갱신됩니다) ───────
+# ── 可选：把仓库同步到最新代码（compose、脚本、本地编译源码都会随之更新） ───────
 sync_repo(){
-  [ -d .git ] && command -v git >/dev/null 2>&1 || { warn "git 작업 사본이 아니라 git pull 을 건너뜁니다"; return; }
-  [ "$(ask '최신 코드를 받을까요 (git pull --ff-only)? (y/n)' y)" = y ] || return
+  [ -d .git ] && command -v git >/dev/null 2>&1 || { warn "这不是 git 工作副本，跳过 git pull"; return; }
+  [ "$(ask '要拉取最新代码吗（git pull --ff-only）？(y/n)' y)" = y ] || return
   if ! git pull --ff-only; then
-    warn "git pull 을 빨리 감기로 진행하지 못했습니다(로컬 변경이 있거나 브랜치가 갈라졌습니다). 직접 처리한 뒤 다시 시도하세요. 이번에는 현재 코드를 그대로 사용합니다"
+    warn "git pull 无法快进（本地有改动或分支已分叉）。请自行处理后重试，本次沿用当前代码"
   fi
 }
 
-# ── ① Docker 업데이트 ───────────────────────────────
-# 이 저장소는 이미지를 배포하지 않는다(상류 autumn27/artex 는 Docker Hub 에서 사라졌다).
-# 따라서 "업데이트"는 새 이미지를 받는 일이 아니라, 현재 소스로 이미지를 다시 빌드하는 일이다.
+# ── ① Docker 更新 ───────────────────────────────
+# 本仓库不发布镜像（上游 autumn27/artex 已从 Docker Hub 下架）。
+# 所以「更新」不是拉新镜像，而是用当前源码重新构建镜像。
 update_docker(){
   command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1 \
-    || die "docker / docker compose 를 찾을 수 없습니다. 먼저 ./install.sh 로 설치·배포하세요"
-  [ -f .env ] || die ".env 를 찾을 수 없습니다. 먼저 ./install.sh 로 최초 배포를 완료하세요"
-  [ -x ./build-image.sh ] || die "build-image.sh 를 찾을 수 없습니다(실행 권한 포함)"
+    || die "找不到 docker / docker compose。请先用 ./install.sh 安装部署"
+  [ -f .env ] || die "找不到 .env。请先用 ./install.sh 完成首次部署"
+  [ -x ./build-image.sh ] || die "找不到 build-image.sh（需要可执行权限）"
 
-  # 빌드(프런트엔드 → 내장 → Linux 바이너리)와 언어 판정은 build-image.sh 가 맡는다.
-  # 언어가 그대로면 다시 빌드하지 않고, 바뀌었으면 그 언어로 다시 빌드한 뒤 기동한다.
+  # 构建（前端 → 内嵌 → Linux 二进制）与语言判定都交给 build-image.sh。
+  # 语言没变就不重建；变了就用新语言重建后再启动。
   ./build-image.sh
 }
 
-# ── ② 로컬 컴파일 업데이트 ──────────────────────────────
+# ── ② 本地编译更新 ──────────────────────────────
 update_local(){
-  command -v go >/dev/null 2>&1 || die "Go 를 찾을 수 없습니다(>=1.26): https://go.dev/dl/"
-  [ -f config.json ] || warn "config.json 을 찾을 수 없습니다. 최초 배포라면 ./install.sh 를 사용하세요"
+  command -v go >/dev/null 2>&1 || die "找不到 Go（>=1.26）：https://go.dev/dl/"
+  [ -f config.json ] || warn "找不到 config.json。如果是首次部署，请使用 ./install.sh"
   ok "Go: $(go version)"
 
   if command -v npm >/dev/null 2>&1; then
     load_env
-    info "프런트엔드 정적 산출물을 다시 빌드합니다… (UI 언어: ${NEXT_PUBLIC_LOCALE:-ko})"
-    ( cd web && npm ci && NEXT_EXPORT=1 NEXT_PUBLIC_LOCALE="${NEXT_PUBLIC_LOCALE:-ko}" npm run build:static )
+    info "重新构建前端静态产物…（界面语言：${NEXT_PUBLIC_LOCALE:-zh}）"
+    ( cd web && npm ci && NEXT_EXPORT=1 NEXT_PUBLIC_LOCALE="${NEXT_PUBLIC_LOCALE:-zh}" npm run build:static )
     rm -rf server/webui/dist && cp -r web/out server/webui/dist
-    info "프런트엔드를 내장한 단일 바이너리를 다시 컴파일합니다…"
+    info "重新编译内嵌前端的单一二进制…"
     CGO_ENABLED=0 go build -tags embedui -trimpath -o artex ./cmd/artex
   else
-    warn "npm 을 찾을 수 없습니다. 프런트엔드를 내장하지 않은 백엔드만 컴파일합니다(프런트엔드는 npm run dev 로 따로 실행해야 합니다)"
+    warn "找不到 npm：只编译不内嵌前端的后端（前端需要用 npm run dev 单独启动）"
     CGO_ENABLED=0 go build -o artex ./cmd/artex
   fi
-  ok "컴파일 완료 → ./artex"
-  warn "변경을 적용하려면 실행 중인 artex 프로세스를 재시작하세요(재시작 시 schema 를 자동으로 마이그레이션합니다)"
+  ok "编译完成 → ./artex"
+  warn "要让改动生效，请重启正在运行的 artex 进程（重启时会自动迁移 schema）"
 }
 
 echo "=============================="
-echo "  ARTEX 업데이트"
-echo "  1) Docker 업데이트(새 이미지를 받아 재구성)"
-echo "  2) 로컬 업데이트(go 로 다시 컴파일)"
+echo "  ARTEX 更新"
+echo "  1) Docker 更新（重新构建镜像并重建容器）"
+echo "  2) 本地更新（用 go 重新编译）"
 echo "=============================="
-case "$(ask '선택' 1)" in
+case "$(ask '选择' 1)" in
   1) sync_repo; update_docker ;;
   2) sync_repo; update_local ;;
-  *) die "잘못된 선택입니다" ;;
+  *) die "选择无效" ;;
 esac

@@ -68,7 +68,7 @@ type nopWriteCloser struct{ io.Writer }
 
 func (nopWriteCloser) Close() error { return nil }
 
-// zipFile describes one entry for buildZip.
+// zipFile 描述 buildZip 的一个条目。
 type zipFile struct {
 	name    string
 	body    string
@@ -102,7 +102,7 @@ func buildZip(t *testing.T, files ...zipFile) []byte {
 	return buf.Bytes()
 }
 
-// uploadZip posts raw zip bytes to fsUploadSkill and returns the response.
+// uploadZip 把原始 zip 字节 POST 给 fsUploadSkill 并返回响应。
 func uploadZip(t *testing.T, skillDir string, filename string, data []byte) (*httptest.ResponseRecorder, map[string]any) {
 	t.Helper()
 	var body bytes.Buffer
@@ -129,7 +129,7 @@ func uploadZip(t *testing.T, skillDir string, filename string, data []byte) (*ht
 const zhSkillMD = "---\nname: 中文技能\ndescription: 测试\n---\n正文\n"
 
 // A zstd-compressed archive (WinZip 的可选压缩方式) used to blow up with
-// "zip: unsupported compression"; it now installs like any Deflate archive.
+// "zip: unsupported compression"；现在它会像普通 Deflate 归档一样安装。
 func TestUploadSkillZstdAndChineseNames(t *testing.T) {
 	dir := t.TempDir()
 	data := buildZip(t,
@@ -152,7 +152,7 @@ func TestUploadSkillZstdAndChineseNames(t *testing.T) {
 }
 
 // GBK-named entries (7-Zip / 资源管理器 on Chinese Windows) must be decoded rather
-// than rejected as invalid UTF-8 paths.
+// 而不是作为非法 UTF-8 路径被拒绝。
 func TestUploadSkillGBKNames(t *testing.T) {
 	gbk := func(s string) string {
 		b, err := simplifiedchinese.GBK.NewEncoder().String(s)
@@ -178,8 +178,8 @@ func TestUploadSkillGBKNames(t *testing.T) {
 	}
 }
 
-// An archive we genuinely cannot decode should name the method in Korean instead of
-// surfacing "zip: unsupported compression algorithm".
+// 真正无法解码的归档应当用中文点出压缩方法，
+// 而不是抛出 "zip: unsupported compression algorithm"。
 func TestUploadSkillUnsupportedMethod(t *testing.T) {
 	data := buildZip(t,
 		zipFile{name: "demo/SKILL.md", body: "---\nname: demo\n---\n", method: zipMethodDeflate64},
@@ -189,15 +189,15 @@ func TestUploadSkillUnsupportedMethod(t *testing.T) {
 		t.Fatalf("status = %d, want 400 (body %s)", rr.Code, rr.Body)
 	}
 	msg, _ := out["error"].(string)
-	if !strings.Contains(msg, "Deflate64") || !strings.Contains(msg, "지원하지 않는 압축 방식") {
-		t.Fatalf("error = %q, want a Korean message naming Deflate64", msg)
+	if !strings.Contains(msg, "Deflate64") || !strings.Contains(msg, "不支持的压缩方式") {
+		t.Fatalf("error = %q, 期望文案点出 Deflate64", msg)
 	}
 }
 
 func TestUploadSkillEncrypted(t *testing.T) {
 	data := buildZip(t, zipFile{name: "demo/SKILL.md", body: "---\nname: demo\n---\n", method: zip.Deflate})
-	// flip the "encrypted" general-purpose flag bit in the local file header
-	// (offset 6) and in the central directory copy (offset 8).
+	// 翻转本地文件头(偏移 6)与中央目录副本(偏移 8)里的
+	// "encrypted" 通用标志位。
 	local := bytes.Index(data, []byte("PK\x03\x04"))
 	central := bytes.Index(data, []byte("PK\x01\x02"))
 	if local < 0 || central < 0 {
@@ -210,12 +210,12 @@ func TestUploadSkillEncrypted(t *testing.T) {
 	if rr.Code != 400 {
 		t.Fatalf("status = %d, want 400 (body %s)", rr.Code, rr.Body)
 	}
-	if msg, _ := out["error"].(string); !strings.Contains(msg, "암호화") {
-		t.Fatalf("error = %q, want 암호화 hint", msg)
+	if msg, _ := out["error"].(string); !strings.Contains(msg, "加密") {
+		t.Fatalf("error = %q, want 加密提示", msg)
 	}
 }
 
-// Zip-slip must still be refused now that the path check accepts Unicode.
+// 路径校验接受 Unicode 之后，zip-slip 仍必须被拒绝。
 func TestUploadSkillRejectsTraversal(t *testing.T) {
 	data := buildZip(t,
 		zipFile{name: "demo/SKILL.md", body: "---\nname: demo\n---\n", method: zip.Deflate},
@@ -226,8 +226,8 @@ func TestUploadSkillRejectsTraversal(t *testing.T) {
 	if rr.Code != 400 {
 		t.Fatalf("status = %d, want 400 (body %s)", rr.Code, rr.Body)
 	}
-	if msg, _ := out["error"].(string); !strings.Contains(msg, "잘못된 경로") {
-		t.Fatalf("error = %q, want 잘못된 경로", msg)
+	if msg, _ := out["error"].(string); !strings.Contains(msg, "非法路径") {
+		t.Fatalf("error = %q, want 非法路径", msg)
 	}
 	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
 		t.Fatalf("upload left files behind: %v", entries)

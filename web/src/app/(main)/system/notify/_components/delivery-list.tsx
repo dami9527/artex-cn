@@ -18,8 +18,8 @@ import type { NotificationChannel, NotificationDelivery } from "@/lib/types";
 // DeliveryList 是投递记录表：可按渠道与状态筛选，失败项可手动重发。
 export function DeliveryList({ channels }: { channels: NotificationChannel[] }) {
   const t = useTranslations("notifyPage");
-  // 전송 상태·심각도 라벨은 전역 공유 `status` 네임스페이스에서 온다(StatusBadge 와 동일 출처).
-  // lib/status.ts 의 중국어는 상류 대조용 죽은 폴백이라 직접 쓰지 않는다(턴 129 함정 참조).
+  // 投递状态与严重程度标签来自全局共享的 `status` 命名空间（与 StatusBadge 同源）。
+  // lib/status.ts 里的中文是用于对照上游的死兜底，不直接使用（参见第 129 轮的坑）。
   const ts = useTranslations("status");
   const tp = useTranslations("pagination");
   const [rows, setRows] = React.useState<NotificationDelivery[]>([]);
@@ -40,7 +40,7 @@ export function DeliveryList({ channels }: { channels: NotificationChannel[] }) 
       })
       .catch((e) => toast.error(t("delivery.loadFailed", { msg: (e as Error).message })))
       .finally(() => setLoading(false));
-    // t 는 안정 참조라 deps 에 넣지 않아도 되지만, exhaustive-deps 를 만족시키려 포함.
+    // t 是稳定引用，本不必放进 deps，但为了满足 exhaustive-deps 还是加上。
   }, [channelID, state, page, t]);
   React.useEffect(() => {
     load();
@@ -183,5 +183,5 @@ export function DeliveryList({ channels }: { channels: NotificationChannel[] }) 
 function formatTime(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString("ko-KR", { hour12: false });
+  return d.toLocaleString("zh-CN", { hour12: false });
 }

@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils";
 
 function fmtTime(ts: string | undefined, never: string) {
   if (!ts) return never;
-  return new Date(ts).toLocaleString("ko-KR", {
+  return new Date(ts).toLocaleString("zh-CN", {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -354,19 +354,19 @@ export default function SkillsPage() {
       .agents()
       .then(setAgents)
       .catch(() => {
-        /* 조회 실패는 무시하고 기본 상태를 유지한다 */
+        /* 查询失败直接忽略，保持默认状态 */
       });
     api
       .mcpServers()
       .then(setMcpOptions)
       .catch(() => {
-        /* 조회 실패는 무시하고 기본 상태를 유지한다 */
+        /* 查询失败直接忽略，保持默认状态 */
       });
     api
       .missingSkills()
       .then(setMissing)
       .catch(() => {
-        /* 조회 실패는 무시하고 기본 상태를 유지한다 */
+        /* 查询失败直接忽略，保持默认状态 */
       });
     api
       .skills()
@@ -377,12 +377,12 @@ export default function SkillsPage() {
             .skillVisibility(s.name)
             .then((ids) => setVisibility((v) => ({ ...v, [s.name]: ids })))
             .catch(() => {
-              /* 가시성 조회 실패는 무시한다 */
+              /* 可见性查询失败直接忽略 */
             });
         });
       })
       .catch(() => {
-        /* 조회 실패는 무시하고 기본 상태를 유지한다 */
+        /* 查询失败直接忽略，保持默认状态 */
       });
   }, []);
 
@@ -400,8 +400,8 @@ export default function SkillsPage() {
     } catch (e) {
       const msg = (e as Error).message;
       // offer overwrite when the skill already exists
-      // (server_mgmt.go errMgmtSkillExistsPre 와 짝 맞춘 교차 스택 마커)
-      if (!overwrite && msg.includes("이미 존재")) {
+      // (与 server_mgmt.go 的 errMgmtSkillExistsPre 配对的跨栈标记)
+      if (!overwrite && msg.includes("已存在")) {
         if (window.confirm(t("overwriteConfirm", { msg }))) {
           await uploadZip(file, true);
           return;

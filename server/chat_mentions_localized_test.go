@@ -8,13 +8,13 @@ import (
 	"testing"
 )
 
-// TestChatMentionErrorsLocalized guards F3b chat_mentions.go: every user-facing
-// @멘션(인용) error response must be Korean (Hangul present, no Chinese Han). The
-// wire token labels (chatMentionPattern·chatMentionKinds), the agent-input
-// snapshot header, and the truncation markers fed into that snapshot stay in the
-// original language by design and are intentionally not checked here.
+// TestChatMentionErrorsLocalized 是 F3b chat_mentions.go 的守卫：每一条用户可见
+// @提及(引用)的错误响应必须是简体中文(含汉字、不含谚文)。下面
+// 线上标记标签(chatMentionPattern·chatMentionKinds)、智能体输入
+// 快照表头，以及写入该快照的截断标记，按设计保持
+// 原文，这里刻意不检查。
 func TestChatMentionErrorsLocalized(t *testing.T) {
-	// Fixed user-facing literals.
+	// 固定的用户可见字面量。
 	for label, msg := range map[string]string{
 		"badID":       errChatMentionBadID,
 		"tooMany":     errChatMentionTooMany,
@@ -22,51 +22,51 @@ func TestChatMentionErrorsLocalized(t *testing.T) {
 		"dataUnavail": errChatMentionDataUnavail,
 		"tooLarge":    errChatMentionTooLarge,
 	} {
-		assertKoreanError(t, label, msg)
+		assertChineseError(t, label, msg)
 	}
 
-	// parseChatMentions — a non-positive id inside a valid wire token.
+	// parseChatMentions —— 合法线上标记里的非正数 id。
 	if _, err := parseChatMentions("@[漏洞#0]"); err == nil {
-		t.Fatal("잘못된 인용 ID 가 통과해서는 안 됩니다")
+		t.Fatal("非法引用 ID 不应通过")
 	} else {
-		assertKoreanError(t, "parse.badID", err.Error())
+		assertChineseError(t, "parse.badID", err.Error())
 	}
 
-	// parseChatMentions — exceeding the per-message mention cap (11 distinct ids).
+	// parseChatMentions —— 超过单条消息的引用上限(11 个不同 id)。
 	var b strings.Builder
 	for i := 1; i <= 11; i++ {
 		fmt.Fprintf(&b, "@[漏洞#%d] ", i)
 	}
 	if _, err := parseChatMentions(b.String()); err == nil {
-		t.Fatal("인용 상한 초과가 통과해서는 안 됩니다")
+		t.Fatal("引用数超限不应通过")
 	} else {
-		assertKoreanError(t, "parse.tooMany", err.Error())
+		assertChineseError(t, "parse.tooMany", err.Error())
 	}
 
-	// composeChatMentionMessage — a mention is present but the database is nil.
+	// composeChatMentionMessage —— 有引用但数据库为 nil。
 	if _, err := composeChatMentionMessage(nil, "@[漏洞#1]"); err == nil {
-		t.Fatal("DB 없이 인용 해석이 통과해서는 안 됩니다")
+		t.Fatal("无 DB 时引用解析不应通过")
 	} else {
-		assertKoreanError(t, "compose.dataUnavail", err.Error())
+		assertChineseError(t, "compose.dataUnavail", err.Error())
 	}
 
-	// searchChatMentions — invalid kind and over-long query are rejected before
-	// the database handle is touched, so &Server{} is enough to reach the branch.
+	// searchChatMentions —— 非法 kind 与超长查询词在触碰数据库句柄
+	// 之前就被拒绝，因此 &Server{} 就足以到达该分支。
 	for _, q := range []string{"kind=unsupported", "q=" + url.QueryEscape(strings.Repeat("字", 201))} {
 		w := httptest.NewRecorder()
 		(&Server{}).searchChatMentions(w, httptest.NewRequest("GET", "/api/chat/mentions?"+q, nil))
 		if w.Code != 400 {
-			t.Fatalf("검증 실패(400)를 기대했으나 %d 가 반환되었습니다 (%s)", w.Code, q)
+			t.Fatalf("期望校验失败(400)，实际返回 %d (%s)", w.Code, q)
 		}
-		assertKoreanError(t, "search."+q, decodeErrorField(t, w.Body.Bytes()))
+		assertChineseError(t, "search."+q, decodeErrorField(t, w.Body.Bytes()))
 	}
 
-	// The display label map mirrors the UI mention kinds, and the not-found
-	// template resolves to a fully Korean message for a known kind.
+	// 展示标签映射与 UI 的引用类型一致，未找到模板
+	// 对已知类型会解析成完整的中文文案。
 	for _, kind := range []string{"finding", "asset", "company", "endpoint", "ip", "app", "root_domain", "subdomain", "service"} {
 		if chatMentionKindLabel[kind] == "" {
-			t.Fatalf("종류 라벨이 누락되었습니다: %s", kind)
+			t.Fatalf("缺少类型标签: %s", kind)
 		}
 	}
-	assertKoreanError(t, "notFound", fmt.Sprintf(errChatMentionNotFoundFmt, chatMentionKindLabel["finding"], 7))
+	assertChineseError(t, "notFound", fmt.Sprintf(errChatMentionNotFoundFmt, chatMentionKindLabel["finding"], 7))
 }

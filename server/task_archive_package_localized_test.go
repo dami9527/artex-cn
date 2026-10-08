@@ -6,25 +6,25 @@ import (
 	"testing"
 )
 
-// task_archive_package.go 의 보관 패키지 삭제 준비 오류 문구를 한국어로 유지하는 회귀 방어
-// 테스트다. 한국어 판정은 F3a 가 만든 assertKoreanError(한글 포함·중국어 한자 0)를 재사용한다.
-// 누군가 이 리터럴을 중국어로 되돌리면 이 테스트가 실패한다.
+// 回归防御测试：保证 task_archive_package.go 的归档包删除准备错误文案为简体中文。
+// 中文判定复用 F3a 的 assertChineseError(含汉字·无谚文)。
+// 一旦有人把这个字面量改回非中文文案，本测试即失败。
 //
-// 호출 그래프 판정(errArchiveStagedAndOriginalCoexist 상수 주석 참조): 이 오류는 백그라운드
-// 아카이브 워커 runOneTaskArchiveJob(task_archives.go:102)이 FailTaskArchiveJob 으로
-// task_archives.error 컬럼에 저장하고, tasks/page.tsx 의 TaskArchivesPanel 이 {archive.error}
-// 로 화면에 직접 표시하는 사용자 노출 전용이다(actool·planner 되먹임 0). 같은 전파 경로의
-// 형제 오류(archiveTask·validateArchivePath)도 이미 한국어라 이 번역은 그와 정합한다.
+// 调用图判定(参见 errArchiveStagedAndOriginalCoexist 常量注释)：这个错误由后台
+// 归档 worker runOneTaskArchiveJob(task_archives.go:102) 经 FailTaskArchiveJob
+// 存入 task_archives.error 列，tasks/page.tsx 的 TaskArchivesPanel 以 {archive.error}
+// 直接显示在页面上，属于用户可见专用(actool·planner 回喂为 0)。同一传播路径上的
+// 同类错误(archiveTask·validateArchivePath)也已是中文，本次翻译与之保持一致。
 //
-// stageTaskArchivePackageDelete 는 DB 에 닿지 않는 순수 파일 함수라, DB 없는 이 호스트에서
-// 원본 파일과 삭제 임시 파일(.deleting-N)을 동시에 만들어 실제 모순 분기를 구동할 수 있다.
+// stageTaskArchivePackageDelete 是不碰 DB 的纯文件函数，因此在无 DB 的本机
+// 可以同时造出原始文件与删除临时文件(.deleting-N)，驱动真正的矛盾分支。
 func TestTaskArchiveStagedAndOriginalCoexistErrorLocalized(t *testing.T) {
 	dataDir := t.TempDir()
 	archivePath := taskArchivePath(dataDir, 21, "42")
 	if err := os.MkdirAll(filepath.Dir(archivePath), archiveDirMode); err != nil {
 		t.Fatal(err)
 	}
-	// 원본 보관 패키지와 삭제 임시 파일이 모두 존재하는 모순 상태를 만든다.
+	// 制造原始归档包与删除临时文件同时存在的矛盾状态。
 	if err := os.WriteFile(archivePath, []byte("original"), archiveFileMode); err != nil {
 		t.Fatal(err)
 	}
@@ -34,10 +34,10 @@ func TestTaskArchiveStagedAndOriginalCoexistErrorLocalized(t *testing.T) {
 	}
 	_, moved, err := stageTaskArchivePackageDelete(archivePath, 21)
 	if err == nil {
-		t.Fatalf("원본과 삭제 임시 파일이 공존하면 오류가 반환되어야 합니다 (moved=%v)", moved)
+		t.Fatalf("原始文件与删除临时文件共存时必须返回错误 (moved=%v)", moved)
 	}
 	if moved {
-		t.Fatal("공존 모순 상태에서는 moved 가 true 가 되어서는 안 됩니다")
+		t.Fatal("共存矛盾状态下 moved 不应为 true")
 	}
-	assertKoreanError(t, "staged_and_original_coexist", err.Error())
+	assertChineseError(t, "staged_and_original_coexist", err.Error())
 }

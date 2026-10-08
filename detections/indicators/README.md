@@ -1,115 +1,94 @@
-# ARTEX indicators (machine-readable)
+# ARTEX 入侵指标（机器可读）
 
-English · [한국어](README.ko.md)
+中文 · [English](README.en.md)
 
-> 한국어: [`artex_indicators.csv`](artex_indicators.csv) 는 ARTEX 가 실제로 내보내는 고유 지문(침해지표,
-> IoC)을 한 파일로 모은 것입니다. 위협 인텔리전스 플랫폼·SIEM 조회 테이블·호스트 분류 작업에 바로
-> 넣을 수 있게 기계가 읽는 CSV 로 둡니다. 모든 값은 이 저장소 소스에서 확인한 문자열이며, 각 행의
-> 출처 파일과 탐지 규칙을 함께 적습니다. 배경 설명은 [방어·탐지 가이드(docs/defense-ko.md)](../../docs/defense-ko.md)
-> 2절 "방어자가 관측할 수 있는 지문"에 있습니다. 자신이 소유하거나 서면 허가를 받은 시스템을 지키는
-> **방어·탐지 목적에만** 사용하십시오. 한국어 전체 문서는 **[README.ko.md](README.ko.md)** 를
-> 보십시오.
+把 ARTEX 自身发出的唯一指纹汇总成一个文件的机器可读列表。它面向需要原子指标本身、而不是检测逻辑的
+防御者：把 [`artex_indicators.csv`](artex_indicators.csv) 直接导入威胁情报平台、SIEM 查询表或主机
+分类（triage）检查表。所有值都是在本仓库源码中核实过的字符串，也就是[检测规则](../README.md)与防御指南
+（[中文](../../docs/defense-zh.md) · [English](../../docs/defense-en.md) 第 2 节）所依据的那些字符串。每一行都写明
+该值来自哪里，以及（如果有）建立在它之上的规则。
 
-A single, machine-readable list of the unique fingerprints ARTEX itself emits, for defenders who want the
-atomic indicators rather than the detection logic: drop [`artex_indicators.csv`](artex_indicators.csv)
-into a threat-intelligence platform, a SIEM lookup table, or a host-triage checklist. Every value is a
-string verified in this repository's source — the same grounding the
-[detection rules](../README.md) and the defense guide
-([Korean](../../docs/defense-ko.md) · [English](../../docs/defense-en.md), section 2) rely on — and each
-row records where it comes from and which rule (if any) is built on it.
+## 列构成
 
-## Columns
+- **`id`**：指标的稳定 slug。
+- **`type`**：指标类型：`http.user-agent`、`string`（在日志·文件中查找的字面量）、`port`、
+  `ip-dst|port`、`other`（不属于上述类别的主机产物，例如数据库模式对象名）。
+  它们映射到对应的 MISP/STIX 属性类型。
+- **`value`**：准确的指标值。包含非 ASCII 守卫标记在内，原样保留。
+- **`perspective`**：`target`（从*朝向* ARTEX 所探测系统的流量中观测）或
+  `forensic`（在 ARTEX 运行过或经过的主机*之上*观测）。防御指南有意区分这两者，混在一起会得出错误结论。
+- **`source`**：发出该值的、以仓库为基准的相对路径源文件（用 `;` 分隔）。这就是
+  依据：上游重新同步改变了发出方，这里的指标也必须随之改变。
+- **`rule`**：建立在该准确值之上的检测规则（用 `;` 分隔）。不通过（嘈杂的）规则输出、
+  而是直接分类的主机取证指标留空。
+- **`description`**：一行说明，适用时同时写上如实的注意事项。
 
-- **`id`** — a stable slug for the indicator.
-- **`type`** — the kind of indicator: `http.user-agent`, `string` (a literal to hunt for in logs/files),
-  `port`, `ip-dst|port`, or `other` (a host artifact that fits none of the above, e.g. a database schema
-  object name). These map onto the equivalent MISP/STIX attribute types.
-- **`value`** — the exact indicator. Preserved verbatim, including the non-ASCII guard marker.
-- **`perspective`** — `target` (observable in traffic *toward* a system ARTEX probes) or `forensic`
-  (observable *on* a host where ARTEX ran or was relayed through). The defense guide keeps these apart on
-  purpose; mixing them produces false conclusions.
-- **`source`** — the repository-relative source file(s) that emit the value, `;`-separated. This is the
-  grounding: if an upstream re-sync changes the emitter, the indicator here must change with it.
-- **`rule`** — the detection rule(s) built on the exact value, `;`-separated, or empty for host-forensic
-  indicators that are triaged directly rather than shipped as a (noisy) rule.
-- **`description`** — a one-line note, including the honest caveat where one applies.
+## MISP 事件导出
 
-## MISP event export
+同样的指标也以可直接导入的 [MISP](https://www.misp-project.org/) 事件
+[`artex_indicators.misp.json`](artex_indicators.misp.json) 提供。运行 MISP 实例（或使用可导入 MISP
+格式的威胁情报平台）的防御者无需手工映射 CSV 列，就能直接导入这些指纹。STIX 2.1 用 MISP 自带的
+转换器导出一次即可，因此仓库不再另外手工维护一个有损的第二种格式。
 
-The same indicators ship as a ready-to-import [MISP](https://www.misp-project.org/) event,
-[`artex_indicators.misp.json`](artex_indicators.misp.json), so a defender running a MISP instance (or a
-threat-intelligence platform that ingests the MISP format) can import the fingerprints directly instead of
-mapping the CSV columns by hand. STIX 2.1 is then one export away using MISP's own converter, so the
-repository does not hand-roll a second, lossy format.
+- **类型映射。** 每个 CSV `type` 都成为对应的 MISP 属性类型：`http.user-agent` →
+  `user-agent`，守卫标记 `string` → `pattern-in-file`（类别 *Artifacts dropped*），`port` →
+  `port`，`ip-dst|port` → `ip-dst|port`（合成值采用 MISP 的 `ip|port` 形式，因此 `127.0.0.1:8788`
+  存为 `127.0.0.1|8788`），探索图模式指纹 `other` → `other`（类别 *Other*）。
+- **`to_ids` 如实跟随 `rule` 列。** 建立了检测规则的行是可处置的指标，标为 `to_ids: true`。
+  没有规则的主机取证行（默认监听端口、回环代理端点，以及探索图模式指纹）是分类提示而不是
+  用于阻断的 IoC，因此标为 `to_ids: false` 并带 `disable_correlation: true`（常见端口、`127.0.0.1`
+  或通用表名不应污染 MISP 关联）。这与 CSV 的 `rule` 列和下面的注意事项所表达的区分一致。
+- **导入。** 用 [pymisp](https://github.com/MISP/PyMISP) 执行
+  `MISPEvent().load_file("artex_indicators.misp.json")`，或用 *Add event → Populate from … → MISP
+  format* 界面，或 REST API。该事件处于未发布状态并带有 `tlp:clear` 标签。导入时请按自己的
+  实例设置分发范围与发布状态。
 
-- **Type mapping.** Each CSV `type` becomes the equivalent MISP attribute type: `http.user-agent` →
-  `user-agent`, the guard marker `string` → `pattern-in-file` (category *Artifacts dropped*), `port` →
-  `port`, `ip-dst|port` → `ip-dst|port` (the composite value uses MISP's `ip|port` form, so
-  `127.0.0.1:8788` is stored as `127.0.0.1|8788`), and the exploration-graph schema fingerprint `other` →
-  `other` (category *Other*).
-- **`to_ids` follows the `rule` column, honestly.** A row that a detection rule is built on is an actionable
-  indicator and is flagged `to_ids: true`. A host-forensic row with no rule — the default listen port, the
-  loopback proxy endpoint, and the exploration-graph schema fingerprint — is a triage hint, not a blocking
-  IoC, so it is `to_ids: false` with `disable_correlation: true` (a common port, `127.0.0.1`, or a generic
-  table name should not pollute MISP correlations). This is the same distinction the CSV `rule` column and
-  the caveats below already carry.
-- **Import.** `MISPEvent().load_file("artex_indicators.misp.json")` with
-  [pymisp](https://github.com/MISP/PyMISP), the *Add event → Populate from … → MISP format* UI, or the REST
-  API. The event is unpublished and tagged `tlp:clear`; set the distribution and publish state your instance
-  needs on import.
+## 如何如实地理解本列表
 
-## How to read this honestly
+- **这些是可以改掉的指纹，不是安全的证据。** 操作者可以把 User-Agent 设成别的值，或更换默认端口，
+  因此这里任何一个值*不存在*都**不**意味着没有 ARTEX。持久的信号是行为。参见关联规则与防御指南
+  第 1·2·4.1~4.2 节。
+- **通用狩猎线索有意排除在外。** 破坏性 shell·数据库命令（`rm -rf`、`DROP DATABASE`……）*不是*
+  ARTEX 指纹，合法管理员也会执行。它们是狩猎线索而不是可导入的指标，因此放在
+  [`destructive_command_hunting.yml`](../sigma/destructive_command_hunting.yml)与防御指南里，而不在
+  本列表中。把它们作为阻断指标导入会产生误报。
+- **norma 的 WebFetch User-Agent 是网络签名，不是可导入的原子指标。** 执行者的页面抓取工具在攻击
+  阶段发送 `norma/0.4`，Suricata 规则 sid 1000003 会在 `norma/` 前缀上触发，但该字符串是 norma SDK
+  中硬编码的自身 User-Agent（`github.com/Autumn-27/norma/tool/webfetch.go`），建立在 norma 之上的
+  所有工具都会发出同样的值，并非 ARTEX 独有指纹。把这个值作为阻断指标放进本列表，会让所有 norma
+  SDK 流量都报警，这与排除破坏性命令是同一个误报陷阱。因此 norma UA 有意不在本列表中，只通过
+  网络规则提供（[`../suricata/README.md`](../suricata/README.md)，sid 1000003）。此外，该值的依据
+  不是本仓库源码，而是固定的依赖（`github.com/Autumn-27/norma`），所以下面的依据测试无法像重新读取
+  ARTEX 自己发出的字符串那样重新读取它。
+- **主机取证端口用于分类而不是阻断。** `:8787` 与 `127.0.0.1:8788` 指向可能正在运行 ARTEX 的
+  主机。用 `ss`·`netstat` 确认，不要盲目用防火墙封禁。
+- **探索图模式指纹用于数据库排查，不是网络·文件 IoC。** `exploration_nodes`
+  表是 ARTEX 存放在 PostgreSQL 中的探索图的核心表。不要凭单次命中下结论，
+  而要确认同库中是否有兄弟表（`exploration_edges`·`exploration_anchors`·`assets`·`companies`·
+  `activity`）与 `agent_prompts` 种子。操作者可以改表名或删表，因此不存在也不代表安全。
+- **`rule` 为空的主机·数据库行有执行器。** 三个不通过 Sigma 规则提供、而是直接分类的指标，也就是
+  监听端口、记录代理端点与这个模式指纹，都由[主机分类脚本](../triage/)在可疑主机上全部检查。
+  这样只有 shell 访问、没有 SIEM 的响应人员不必手动运行 `ss`·`netstat`·`psql`。
 
-- **These are changeable fingerprints, not proof of safety.** An operator can set a different User-Agent
-  or change a default port, so the *absence* of any value here does **not** mean ARTEX is absent. The
-  durable signal is behaviour — see the correlation rules and sections 1, 2, and 4.1–4.2 of the defense
-  guide.
-- **Generic hunting leads are deliberately excluded.** Destructive shell/DB commands (`rm -rf`, `DROP
-  DATABASE`, …) are *not* ARTEX fingerprints — legitimate administrators run them too. They are a hunting
-  lead, not an import-ready indicator, so they live in
-  [`destructive_command_hunting.yml`](../sigma/destructive_command_hunting.yml) and the defense guide, not
-  in this list. Importing them as blocking indicators would cause false positives.
-- **The norma WebFetch User-Agent is a wire signature, not an atomic indicator.** The worker's page-fetch
-  tool sends `norma/0.4` during the attack phase, and Suricata sid 1000003 fires on the `norma/` prefix, but
-  that string is the norma SDK's own hardcoded User-Agent (`github.com/Autumn-27/norma/tool/webfetch.go`), shared by every tool built on
-  norma rather than an ARTEX-unique fingerprint. Importing it here as a blocking indicator would alert on all
-  norma-SDK traffic — the same false-positive trap the destructive commands sit in — so it is deliberately
-  kept out of this list and shipped only as the network rule
-  ([`../suricata/README.md`](../suricata/README.md), sid 1000003). It is also grounded in a pinned dependency
-  (`github.com/Autumn-27/norma`), not this repository's own source, so the source-of-truth test below cannot
-  re-read it the way it re-reads ARTEX's own emitters.
-- **Host-forensic ports are for triage, not blocking.** `:8787` and `127.0.0.1:8788` describe a host that
-  may be running ARTEX; check them with `ss`/`netstat`, do not firewall them blindly.
-- **The exploration-graph schema fingerprint is for DB inspection, not a network/file IoC.** The
-  `exploration_nodes` table is the core of the exploration graph ARTEX keeps in PostgreSQL. Do not conclude
-  from a single hit; confirm that the sibling tables (`exploration_edges`, `exploration_anchors`, `assets`,
-  `companies`, `activity`) and the `agent_prompts` seed sit in the same database. An operator can rename or
-  drop tables, so absence does not mean safety.
-- **The host/DB rows with no `rule` have a runner.** The three indicators triaged directly rather than
-  shipped as a Sigma rule — the listen ports, the recording-proxy endpoint, and this schema fingerprint —
-  are all checked by the [host-triage script](../triage/) on a suspected host, so a responder with
-  shell access but no SIEM does not have to run `ss`/`netstat`/`psql` by hand.
+## 验证
 
-## Verification
-
-The list is covered by the [indicator source-of-truth test](../tests/indicators/run.sh): it re-reads this
-CSV and asserts, for every row, that the value is still present in the cited source file(s) and pinned in
-the cited rule(s), and that every indicator the test grounds appears in the list. A row that drifts from
-the source, or a known fingerprint dropped from the list, fails the test. Run it with:
+本列表由[指标依据（source-of-truth）测试](../tests/indicators/run.sh)覆盖。它重新读取该
+CSV，对每一行断言其值仍在所引用的源文件中、仍固定在所引用的规则里，并断言
+测试作为依据的所有指标都出现在列表中。凡与源码出现偏差的行，或列表中缺失的已知指纹，都会让测试
+失败。运行方式：
 
 ```sh
 detections/tests/indicators/run.sh
 ```
 
-The MISP event is covered by its own [MISP export consistency test](../tests/misp/run.sh): it loads the
-event under pymisp (so every attribute type is a real MISP type a server accepts) and asserts it stays
-row-for-row in sync with this CSV — same values, the intended type/category, and the `to_ids` flag matching
-the `rule` column. The event is maintained by hand alongside the CSV — it also carries curated per-attribute
-comments, stable UUIDs, and event-level tags that the CSV does not hold, so there is no generator that would
-overwrite them with lossy defaults. When you add, remove, or retype a CSV row, edit
-[`artex_indicators.misp.json`](artex_indicators.misp.json) to match in the same commit (give a new attribute a
-fresh `uuid` and a grounding `comment`); this test fails until the two agree, so the update cannot be silently
-forgotten. Run it with:
+MISP 事件由它自己的 [MISP 导出一致性测试](../tests/misp/run.sh)覆盖。它用 pymisp
+加载该事件（确保每个属性类型都是服务器接受的实存 MISP 类型），并断言它与本 CSV 逐行
+同步，也就是值相同、类型·类别符合意图、`to_ids` 标志与 `rule` 列一致。
+该事件与 CSV 并排手工维护。它还带有 CSV 不具备的、按属性整理的注释·稳定
+UUID·事件级标签，因此没有会用有损默认值覆盖它们的生成器。新增、删除或修改
+CSV 行的类型时，请在同一次提交中同步修改
+[`artex_indicators.misp.json`](artex_indicators.misp.json)（新属性要给出新的 `uuid` 与
+作为依据的 `comment`）。二者不一致时该测试就会失败，因此不会悄悄忘记更新。运行方式：
 
 ```sh
 detections/tests/misp/run.sh

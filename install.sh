@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ARTEX 설치 스크립트: ① 전부 Docker  ② 로컬 컴파일 실행
+# ARTEX 安装脚本：① 全部用 Docker  ② 本地编译运行
 set -euo pipefail
 cd "$(cd "$(dirname "$0")" && pwd)"
 
@@ -9,43 +9,43 @@ warn(){ printf '\033[33m[!]\033[0m %s\n' "$*"; }
 die(){  printf '\033[31m[x]\033[0m %s\n' "$*" >&2; exit 1; }
 ask(){  local p="$1" d="${2:-}" a; read -rp "$p${d:+ [$d]}: " a; echo "${a:-$d}"; }
 
-# .env 를 있으면 읽어 설정(POSTGRES_PASSWORD·NEXT_PUBLIC_LOCALE 등)을 한 곳에서 관리한다.
+# 如果存在 .env 就先读入，把配置（POSTGRES_PASSWORD、NEXT_PUBLIC_LOCALE 等）集中到一处。
 load_env(){
   [ -f .env ] || return 0
-  set +u                      # set -u 상태에서 .env 의 빈 값이 오류가 되지 않게 한다
+  set +u                      # 避免 .env 里的空值在 set -u 下报错
   set -a; . ./.env; set +a
   set -u
 }
 rand(){ head -c 18 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24; }
 
-# ── docker 환경 감지 / 자동 설치 ──────────────────
+# ── Docker 环境检测与自动安装 ──────────────────
 ensure_docker(){
   if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-    ok "docker 와 docker compose 를 확인했습니다"; return
+    ok "已检测到 docker 与 docker compose"; return
   fi
-  warn "docker / docker compose 를 찾을 수 없습니다"
+  warn "找不到 docker / docker compose"
   case "$(uname -s)" in
     Linux)
-      if [ "$(ask 'Docker 를 자동으로 설치할까요? (y/n)' y)" = y ]; then
+      if [ "$(ask '要自动安装 Docker 吗？(y/n)' y)" = y ]; then
         curl -fsSL https://get.docker.com | sh
         sudo usermod -aG docker "$USER" || true
-        ok "Docker 설치를 완료했습니다 (사용자 그룹 변경은 다시 로그인해야 sudo 없이 적용됩니다)"
+        ok "Docker 安装完成（用户组变更需要重新登录后才会免 sudo 生效）"
       else
-        die "docker 를 직접 설치한 뒤 다시 실행해 주세요"
+        die "请自行安装 docker 后重新运行"
       fi ;;
-    Darwin) die "macOS 에서는 Docker Desktop 을 설치해 주세요: https://www.docker.com/products/docker-desktop/" ;;
-    *)      die "docker 를 직접 설치한 뒤 다시 실행해 주세요" ;;
+    Darwin) die "macOS 请安装 Docker Desktop：https://www.docker.com/products/docker-desktop/" ;;
+    *)      die "请自行安装 docker 后重新运行" ;;
   esac
 }
 
-# ── ① 전부 Docker ──────────────────────────────
-# Dockerfile 은 "실행 전용"이라 미리 컴파일한 Linux 바이너리(dist/<arch>/artex)를 요구한다.
-# 상류 이미지 autumn27/artex 는 Docker Hub 에서 사라졌으므로 pull 로는 기동할 수 없다.
-# 빌드 로직(프런트엔드 → 내장 → Linux 바이너리)은 build-image.sh 한 곳에 둔다.
-# 언어 판정·재빌드 필요 여부·.env 읽기도 그 스크립트가 맡으므로, 여기서는 위임만 한다
-# (같은 로직을 두 벌 두면 UI 언어가 조용히 어긋난다).
+# ── ① 全部用 Docker ──────────────────────────────
+# Dockerfile 是「只负责运行」的镜像，要求事先编译好 Linux 二进制（dist/<arch>/artex）。
+# 上游镜像 autumn27/artex 已从 Docker Hub 下架，无法用 pull 启动。
+# 构建逻辑（前端 → 内嵌 → Linux 二进制）只放在 build-image.sh 一处。
+# 语言判定、是否需要重建、读取 .env 都由那个脚本负责，这里只做委托
+# （同样的逻辑写两份会让界面语言悄悄跑偏）。
 build_artex_image(){
-  [ -x ./build-image.sh ] || die "build-image.sh 를 찾을 수 없습니다(실행 권한 포함)"
+  [ -x ./build-image.sh ] || die "找不到 build-image.sh（需要可执行权限）"
   ./build-image.sh --no-up
 }
 
@@ -54,46 +54,45 @@ install_docker(){
   if [ ! -f .env ]; then
     cp .env.example .env 2>/dev/null || true
     local pw key
-    pw="$(ask 'Postgres 비밀번호 (엔터를 누르면 무작위 생성)' "$(rand)")"
-    key="$(ask 'ANTHROPIC_API_KEY (비워 둬도 되며 나중에 UI 에서 설정)' '')"
+    pw="$(ask 'Postgres 密码（直接回车则随机生成）' "$(rand)")"
+    key="$(ask 'ANTHROPIC_API_KEY（可以留空，稍后在界面里配置）' '')"
     sed -i.bak "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${pw}|" .env
     sed -i.bak "s|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=${key}|" .env
     rm -f .env.bak
-    ok ".env 파일을 생성했습니다 (POSTGRES_PASSWORD 설정 완료)"
+    ok "已生成 .env 文件（POSTGRES_PASSWORD 已设置）"
   else
-    info "이미 있는 .env 파일을 그대로 사용합니다"
+    info "沿用已有的 .env 文件"
   fi
   build_artex_image
-  info "이미지를 빌드하고 기동합니다…"
+  info "构建镜像并启动…"
   docker compose up -d --build
-  ok "기동을 완료했습니다 → http://localhost:8787 (UI 언어: ${NEXT_PUBLIC_LOCALE:-ko})"
-  info "UI 언어를 바꾸려면: ./build-image.sh --locale zh (또는 .env 의 NEXT_PUBLIC_LOCALE)"
-  info "로그 확인: docker compose logs -f artex"
+  ok "启动完成 → http://localhost:8787（界面语言：${NEXT_PUBLIC_LOCALE:-zh}）"
+  info "查看日志：docker compose logs -f artex"
 }
 
-# ── ② 로컬 컴파일 실행 ────────────────────────────
+# ── ② 本地编译运行 ────────────────────────────
 install_local(){
-  echo "데이터베이스 설치 방식:"
-  echo "  1) 기존 PostgreSQL 에 연결"
-  echo "  2) Docker 로 PostgreSQL 하나 기동 (docker 필요)"
-  case "$(ask '선택' 1)" in
+  echo "数据库安装方式："
+  echo "  1) 连接已有的 PostgreSQL"
+  echo "  2) 用 Docker 起一个 PostgreSQL（需要 docker）"
+  case "$(ask '选择' 1)" in
     2)
       ensure_docker
-      local pw; pw="$(ask 'Postgres 비밀번호 (엔터를 누르면 무작위)' "$(rand)")"
+      local pw; pw="$(ask 'Postgres 密码（直接回车则随机生成）' "$(rand)")"
       docker run -d --name artex-pg -p 5432:5432 \
         -e POSTGRES_USER=artex -e POSTGRES_PASSWORD="$pw" -e POSTGRES_DB=artex \
         -v artex-pg:/var/lib/postgresql/data postgres:16-alpine
       DB_HOST=127.0.0.1 DB_PORT=5432 DB_USER=artex DB_PASS="$pw" DB_NAME=artex DB_SSL=disable ;;
     *)
-      DB_HOST="$(ask '데이터베이스 주소' 127.0.0.1)"
-      DB_PORT="$(ask '포트' 5432)"
-      DB_USER="$(ask '계정' artex)"
-      DB_PASS="$(ask '비밀번호' '')"
-      DB_NAME="$(ask '데이터베이스 이름' artex)"
+      DB_HOST="$(ask '数据库地址' 127.0.0.1)"
+      DB_PORT="$(ask '端口' 5432)"
+      DB_USER="$(ask '账号' artex)"
+      DB_PASS="$(ask '密码' '')"
+      DB_NAME="$(ask '数据库名' artex)"
       DB_SSL="$(ask 'sslmode (disable/require)' disable)" ;;
   esac
 
-  # config.json 생성
+  # 生成 config.json
   cat > config.json <<JSON
 {
   "database": {
@@ -106,36 +105,36 @@ install_local(){
   }
 }
 JSON
-  ok "config.json 파일을 생성했습니다"
+  ok "已生成 config.json"
 
-  # go 환경 확인
-  command -v go >/dev/null 2>&1 || die "Go 를 찾을 수 없습니다. 먼저 Go (>=1.26) 를 설치해 주세요: https://go.dev/dl/"
+  # 检查 go 环境
+  command -v go >/dev/null 2>&1 || die "找不到 Go。请先安装 Go（>=1.26）：https://go.dev/dl/"
   ok "Go: $(go version)"
 
-  # 프런트엔드를 내장하려면 node 로 정적 산출물을 만들어야 합니다
+  # 要把前端内嵌进二进制，需要用 node 生成静态产物
   if command -v npm >/dev/null 2>&1; then
-    info "프런트엔드 정적 산출물을 빌드합니다…"
+    info "构建前端静态产物…"
     ( cd web && npm ci && npm run build:static )
     rm -rf server/webui/dist && mkdir -p server/webui && cp -r web/out server/webui/dist
-    info "프런트엔드를 내장한 단일 바이너리를 컴파일합니다…"
+    info "编译内嵌前端的单一二进制…"
     CGO_ENABLED=0 go build -tags embedui -trimpath -o artex ./cmd/artex
   else
-    warn "npm 을 찾을 수 없습니다: 프런트엔드를 내장하지 않은 백엔드만 컴파일합니다 (프런트엔드는 npm run dev 로 따로 실행)"
+    warn "找不到 npm：只编译不内嵌前端的后端（前端用 npm run dev 单独启动）"
     CGO_ENABLED=0 go build -o artex ./cmd/artex
   fi
-  ok "컴파일을 완료했습니다 → ./artex"
+  ok "编译完成 → ./artex"
 
-  info "기동합니다… (Ctrl-C 로 종료)"
+  info "启动…（Ctrl-C 退出）"
   ./artex
 }
 
 echo "=============================="
-echo "  ARTEX 설치"
-echo "  1) 전부 Docker 설치"
-echo "  2) 로컬 실행 (go 컴파일)"
+echo "  ARTEX 安装"
+echo "  1) 全部用 Docker 安装"
+echo "  2) 本地运行（go 编译）"
 echo "=============================="
-case "$(ask '선택' 1)" in
+case "$(ask '选择' 1)" in
   1) install_docker ;;
   2) install_local ;;
-  *) die "잘못된 선택입니다" ;;
+  *) die "选择无效" ;;
 esac

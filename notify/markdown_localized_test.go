@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-// hanFreeItems 는 CJK 한자가 없는 항목(ASCII 제목·유형·요약)만 만든다.
-// 라벨이 중국어로 되돌아가면 렌더 결과 전체에 한자가 생기므로, 데이터가
-// 한자 0 일 때만 "출력 전체에 한자 0" 단언이 라벨 회귀를 정확히 잡아낸다.
-func hanFreeItems(n int) []Item {
+// koFreeItems 只构造不含谚文的条目（ASCII 的标题、类型、摘要）。
+// 标签回退成谚文时整份渲染结果都会出现谚文，因此只有数据本身谚文为 0 时，
+// 「整份输出谚文为 0」这条断言才能精确抓到标签回退。
+func koFreeItems(n int) []Item {
 	items := make([]Item, 0, n)
 	for i := 0; i < n; i++ {
 		items = append(items, Item{
@@ -23,62 +23,61 @@ func hanFreeItems(n int) []Item {
 	return items
 }
 
-// TestMarkdownTitleLocalized 는 markdown 계열 채널(dingtalk·wecom)과 제목을
-// 공유하는 feishu·html·telegram·webhook 이 함께 쓰는 markdownTitle 이 한국어인지
-// 검사한다. 하나라도 중국어로 되돌아가면 이 다섯 채널의 제목이 전부 혼재된다.
+// TestMarkdownTitleLocalized 检查 markdownTitle 是否为简体中文。dingtalk·wecom
+// 复用 markdown 渲染，feishu·html·telegram·webhook 也共用这个标题函数，
+// 任何一个回退都会让这五个渠道的标题一起混杂。
 func TestMarkdownTitleLocalized(t *testing.T) {
-	// 다건(汇总): "취약점 요약 · 총 N건"
-	got := markdownTitle(Message{Batch: true, Items: hanFreeItems(3)})
-	assertKorean(t, "markdownTitle(batch)", got)
-	if !strings.Contains(got, "취약점 요약") || !strings.Contains(got, "총 3건") {
-		t.Errorf("다건 제목이 '취약점 요약 · 총 3건' 형태여야 합니다, 받은 값 %q", got)
+	// 多条（汇总）："漏洞汇总 · 共 N 条"
+	got := markdownTitle(Message{Batch: true, Items: koFreeItems(3)})
+	assertChinese(t, "markdownTitle(batch)", got)
+	if !strings.Contains(got, "漏洞汇总") || !strings.Contains(got, "共 3 条") {
+		t.Errorf("多条标题必须是 '漏洞汇总 · 共 3 条' 形式，实际得到 %q", got)
 	}
-	// 항목 없음: "취약점 알림"
+	// 无条目："漏洞通知"
 	empty := markdownTitle(Message{})
-	assertKorean(t, "markdownTitle(empty)", empty)
-	if empty != "취약점 알림" {
-		t.Errorf("빈 메시지 제목은 '취약점 알림' 이어야 합니다, 받은 값 %q", empty)
+	assertChinese(t, "markdownTitle(empty)", empty)
+	if empty != "漏洞通知" {
+		t.Errorf("空消息标题必须是 '漏洞通知'，实际得到 %q", empty)
 	}
 }
 
-// TestMarkdownBatchIntroLocalized 는 다이제스트 머리말(시간창·건수·초과 안내)이
-// 한국어인지 검사한다. 항목 데이터가 한자 0 이므로 출력에 한자가 보이면 머리말
-// 문구가 중국어로 회귀한 것이다.
+// TestMarkdownBatchIntroLocalized 检查汇总导读（时间窗、条数、超量提示）是否为
+// 简体中文。条目数据谚文为 0，所以输出里一出现谚文就是导读文案回退了。
 func TestMarkdownBatchIntroLocalized(t *testing.T) {
-	items := hanFreeItems(3)
+	items := koFreeItems(3)
 
-	// 시간창 있음: "최근 N분간 신규 취약점 N건"
+	// 有时间窗："近 N 分钟新增 N 个漏洞"
 	win := markdownBatchIntro(Message{Batch: true, WindowMinutes: 30}, items, 3)
-	if hasHan(win) {
-		t.Errorf("시간창 머리말에 중국어 한자가 남았습니다: %q", win)
+	if hasHangul(win) {
+		t.Errorf("时间窗导读仍残留谚文: %q", win)
 	}
-	if !strings.Contains(win, "최근 30분간") || !strings.Contains(win, "신규 취약점 3건") {
-		t.Errorf("시간창 머리말이 '최근 30분간 신규 취약점 3건' 형태여야 합니다, 받은 값 %q", win)
+	if !strings.Contains(win, "近 30 分钟") || !strings.Contains(win, "新增 3 个漏洞") {
+		t.Errorf("时间窗导读必须是 '近 30 分钟新增 3 个漏洞' 形式，实际得到 %q", win)
 	}
 
-	// 시간창 없음: "신규 취약점 N건"(분간 표기 없음)
+	// 无时间窗："新增 N 个漏洞"（不带分钟表述）
 	noWin := markdownBatchIntro(Message{Batch: true}, items, 3)
-	if hasHan(noWin) {
-		t.Errorf("머리말에 중국어 한자가 남았습니다: %q", noWin)
+	if hasHangul(noWin) {
+		t.Errorf("导读仍残留谚文: %q", noWin)
 	}
-	if !strings.Contains(noWin, "신규 취약점 3건") || strings.Contains(noWin, "분간") {
-		t.Errorf("시간창 없는 머리말은 '신규 취약점 3건'(분간 표기 없음)이어야 합니다, 받은 값 %q", noWin)
+	if !strings.Contains(noWin, "新增 3 个漏洞") || strings.Contains(noWin, "分钟") {
+		t.Errorf("无时间窗导读必须是 '新增 3 个漏洞'（不带分钟表述），实际得到 %q", noWin)
 	}
 
-	// 일부만 담겼을 때: "(이 메시지에는 앞 N건만 … 나머지 N건은 다음 메시지에서 …)"
+	// 只装入一部分时："（本条显示前 N 条，其余 N 条将在下一条消息继续）"
 	trunc := markdownBatchIntro(Message{Batch: true, WindowMinutes: 30}, items, 5)
-	if hasHan(trunc) {
-		t.Errorf("초과 안내에 중국어 한자가 남았습니다: %q", trunc)
+	if hasHangul(trunc) {
+		t.Errorf("超量提示仍残留谚文: %q", trunc)
 	}
-	for _, want := range []string{"앞 3건만", "나머지 2건", "다음 메시지에서"} {
+	for _, want := range []string{"前 3 条", "其余 2 条", "下一条消息"} {
 		if !strings.Contains(trunc, want) {
-			t.Errorf("초과 안내에 %q 가 있어야 합니다, 받은 값 %q", want, trunc)
+			t.Errorf("超量提示必须包含 %q，实际得到 %q", want, trunc)
 		}
 	}
 }
 
-// TestWriteItemLabelsLocalized 는 단건 상세 렌더(markdown 3채널 공유 경로)의
-// 필드 라벨(상태 변경·유형·자산·개요)과 상세 링크가 한국어인지 검사한다.
+// TestWriteItemLabelsLocalized 检查单条详情渲染（markdown 三渠道共用路径）的
+// 字段标签（状态变更、类型、资产、摘要）与详情链接是否为简体中文。
 func TestWriteItemLabelsLocalized(t *testing.T) {
 	it := Item{
 		Name:       "login-flaw",
@@ -94,29 +93,29 @@ func TestWriteItemLabelsLocalized(t *testing.T) {
 	writeItem(&b, it, "", true)
 	got := b.String()
 
-	assertKorean(t, "writeItem(single)", got)
+	assertChinese(t, "writeItem(single)", got)
 	for _, want := range []string{
-		"**상태 변경**: 처리 대기 → 수정됨",
-		"**유형**: SQLi",
-		"**자산**: a.example.com",
-		"**개요**: SQL injection via q param",
-		"[상세 보기](https://platform.example/finding/1)",
+		"**状态变更**：待处理 → 已修复",
+		"**类型**：SQLi",
+		"**资产**：a.example.com",
+		"**摘要**：SQL injection via q param",
+		"[查看详情](https://platform.example/finding/1)",
 	} {
 		if !strings.Contains(got, want) {
-			t.Errorf("단건 렌더에 %q 가 있어야 합니다:\n%s", want, got)
+			t.Errorf("单条渲染必须包含 %q:\n%s", want, got)
 		}
 	}
 }
 
-// TestMarkdownBodyFooterLocalized 는 다건 본문 끝의 플랫폼 입구 링크가
-// 한국어인지 검사한다(HomeURL 이 있을 때만 붙는다).
+// TestMarkdownBodyFooterLocalized 检查多条正文末尾的平台入口链接是否为简体中文
+// （仅在 HomeURL 非空时追加）。
 func TestMarkdownBodyFooterLocalized(t *testing.T) {
-	m := Message{Batch: true, HomeURL: "https://platform.example", Items: hanFreeItems(2)}
+	m := Message{Batch: true, HomeURL: "https://platform.example", Items: koFreeItems(2)}
 	body, kept := markdownBody(m, 0)
 	if kept != 2 {
-		t.Fatalf("한도 없음(0)이면 2건 모두 담겨야 합니다, 받은 값 %d", kept)
+		t.Fatalf("不设上限(0)时必须装入全部 2 条，实际得到 %d", kept)
 	}
-	if !strings.Contains(body, "[플랫폼에서 전체 보기](https://platform.example)") {
-		t.Errorf("본문 끝에 '플랫폼에서 전체 보기' 링크가 있어야 합니다:\n%s", body)
+	if !strings.Contains(body, "[在平台中查看全部](https://platform.example)") {
+		t.Errorf("正文末尾必须有 '在平台中查看全部' 链接:\n%s", body)
 	}
 }

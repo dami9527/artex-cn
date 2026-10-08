@@ -1,38 +1,46 @@
-# pre-commit 설정 예시 (공식 문서: https://pre-commit.com)
+# pre-commit 配置示例（官方文档：https://pre-commit.com）
 #
-# 저장소 CI 의 결정론적 머지 게이트 두 가지를 로컬 커밋 단계에서 먼저 통과시켜, 깨진
-# 변경이 푸시 전에 걸리게 한다. 어느 훅이든 단언이 실패하면 0 이 아닌 코드로 끝나 커밋이
-# 멈춘다.
+# 把仓库 CI 的两道确定性合并门禁提前到本地提交阶段跑一遍，让有问题的改动在推送前就被
+# 拦下。任一钩子的断言失败都会以非 0 退出码结束，提交随之中止。
 #
-# 1) detections — 탐지 규칙(detections/)이나 그 규칙이 고정한 상류 소스가 바뀌는 커밋에서만,
-#    여덟 탐지 테스트를 한 번에 돌리는 러너(detections/tests/run-all.sh)를 실행한다.
-#    CI(.github/workflows/detections.yml)와 같은 규칙·소스 범위를 먼저 통과시켜, 규칙만
-#    바꾸고 테스트·레이어를 갱신하지 않은 변경을 잡는다. 요구 사항은 Docker 다(각 테스트가
-#    컨테이너에서 격리 실행되고, 러너에는 아무것도 설치하지 않는다).
-# 2) docs — 추적되는 마크다운 문서의 저장소 내부 링크·이미지·앵커(#헤딩) 참조가 실존 대상을
-#    가리키는지 검사한다(scripts/check-doc-links.py). CI(.github/workflows/docs.yml)와 같은
-#    검사이며, 그쪽이 paths 필터 없이 모든 변경에 도는 것과 맞추려고 여기서도 대상 파일을
-#    좁히지 않는다(always_run). 링크는 .md 를 고칠 때뿐 아니라 링크가 가리키던 파일(이미지·
-#    LICENSE 등)을 지우거나 옮길 때도 깨지기 때문이다. 파이썬 표준 라이브러리만 쓰고
-#    네트워크에 접속하지 않아 Docker 없이 수십 ms 안에 끝난다.
+# 1) detections —— 只在提交改动了检测规则（detections/）或规则固定住的上游源码时，运行
+#    一次性跑完八套检测测试的运行器（detections/tests/run-all.sh）。它与 CI
+#    （.github/workflows/detections.yml）用同样的规则与源码范围，能抓住只改规则、没更新
+#    测试与图层的改动。依赖 Docker（每套测试在容器里隔离执行，运行器上不装任何东西）。
+# 2) docs —— 检查受跟踪的 Markdown 文档中仓库内部链接、图片、锚点（#标题）引用是否指向
+#    真实存在的对象（scripts/check-doc-links.py）。与 CI（.github/workflows/docs.yml）同一
+#    套检查；那边不带 paths 过滤、对所有改动都跑，这里也就不缩小目标文件范围（always_run）。
+#    因为链接不只在改 .md 时会断，删掉或移动链接指向的文件（图片、LICENSE 等）时同样会断。
+#    只用 Python 标准库、不访问网络，没有 Docker 也能在几十毫秒内跑完。
+# 3) ko-check —— 扫描仓库中的文本文件（跳过构建产物与依赖目录），确认任何地方都不再有
+#    韩文（谚文）残留（scripts/check-no-korean.py，与 .github/workflows/web.yml 里的门禁
+#    同一个脚本）。界面、注释、用户可见文案、提示词、文档、脚本一律用简体中文，脚本发现
+#    残留即以退出码 1 结束。只用 Python 标准库、不访问网络。
 #
-# 설치:        pip install pre-commit && pre-commit install
-# 수동 실행:   pre-commit run detections --all-files
-#              pre-commit run docs --all-files
+# 安装：        pip install pre-commit && pre-commit install
+# 手动执行：    pre-commit run detections --all-files
+#               pre-commit run docs --all-files
+#               pre-commit run ko-check --all-files
 #
-# 두 훅만 거는 최소 예시다. Go·웹 린트까지 함께 걸고 싶으면 이 아래에 각자의 훅을 더한다.
+# 这是只挂三个钩子的最小示例。想连 Go、前端的 lint 一起挂，在下面追加各自的钩子即可。
 repos:
   - repo: local
     hooks:
       - id: detections
-        name: 탐지 규칙 테스트 8종 (Sigma·Suricata·ATT&CK·지표·MISP)
+        name: 检测规则测试 8 套（Sigma·Suricata·ATT&CK·指标·MISP）
         entry: detections/tests/run-all.sh
         language: script
         pass_filenames: false
         files: '^(detections/|enrich/enrich\.go|selfupdate/(github|stage)\.go|guard/guard\.go|db/db\.go|db/schema\.sql|cmd/artex/main\.go|traffic/traffic\.go)'
       - id: docs
-        name: 문서 내부 링크·이미지·앵커(#헤딩) 무결성 검사
+        name: 文档内部链接、图片、锚点（#标题）完整性检查
         entry: python3 -I scripts/check-doc-links.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: ko-check
+        name: 韩文残留检查（全仓库不允许韩文）
+        entry: python3 -I scripts/check-no-korean.py
         language: system
         pass_filenames: false
         always_run: true

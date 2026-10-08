@@ -12,7 +12,7 @@ import type { AssetInterceptKind, AssetInterceptRuleInput } from "@/lib/types";
 
 // 用 NativeSelect（原生 <select>）而非 shadcn Select：这个编辑器会用在 Sheet 抽屉内，
 // shadcn Select 的下拉 portal 到 body、点击外部会触发抽屉的「点击外部关闭」误关；原生下拉无此问题。
-// label 은 렌더 시점에 t(`kind.${value}`) 로 해석(ASSET_INTERCEPT_KIND_OPTIONS 외부 소비처 없음).
+// label 在渲染时用 t(`kind.${value}`) 解析（ASSET_INTERCEPT_KIND_OPTIONS 没有外部消费方）。
 export const ASSET_INTERCEPT_KIND_OPTIONS: {
   value: AssetInterceptKind;
   placeholder: string;

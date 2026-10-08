@@ -9,39 +9,38 @@ import (
 	"github.com/Autumn-27/artex/db"
 )
 
-// engine.go 의 작업 제어·의도 개입 오류 중 "사용자 노출" 문구를 한국어로 유지하는 회귀
-// 방어 테스트다. 한국어 판정은 F3a 가 만든 assertKoreanError(한글 포함·중국어 한자 0)를
-// 재사용한다.
+// 回归防御测试：保证 engine.go 的任务控制·意图介入错误中「用户可见」的
+// 文案为简体中文。中文判定复用 F3a 的 assertChineseError(含汉字·无谚文)。
 //
-// 호출 그래프 판정(engine.go 상수 블록 주석 참조):
-//   - ControlWork 의 네 오류(실행 중 work 없음·이미 제어 중·마무리 대기 취소·마무리 대기
-//     타임아웃) → applyIntentControl(task_control.go) → controlIntent(server.go:1236) →
-//     writeErr 409. 사용자 전용이며 에이전트 도구(actool) 경로에 닿지 않는다.
-//   - runDetachedIntent 의 두 오류(Worker 미준비·재개 CAS 충돌) →
-//     sendWorkerMessage(intent_intervention.go:147) → writeErr. 사용자 전용이다.
-//   - 반대로 SteerWork·KillWork(steer_work·kill_work 도구 actool.Errorf)·
-//     transitionIntentState(내부 상태 전이 로그)의 중국어는 두뇌 입력·로그라 보존하며 이
-//     테스트의 대상이 아니다.
+// 调用图判定(参见 engine.go 常量块注释)：
+//   - ControlWork 的四个错误(无运行中的 work·已在进行控制·等待收尾被取消·等待收尾
+//     超时) → applyIntentControl(task_control.go) → controlIntent(server.go:1236) →
+//     writeErr 409。属于用户专用，不触及智能体工具(actool)路径。
+//   - runDetachedIntent 的两个错误(Worker 未就绪·恢复 CAS 冲突) →
+//     sendWorkerMessage(intent_intervention.go:147) → writeErr。属于用户专用。
+//   - 反之 SteerWork·KillWork(steer_work·kill_work 工具的 actool.Errorf)·
+//     transitionIntentState(内部状态迁移日志)的中文属于大脑输入·日志，予以保留，
+//     不是本测试的对象。
 
-// TestControlWorkNoRunningWorkErrorLocalized 는 실행 중 work 가 없을 때 ControlWork 가
-// 실제로 한국어 오류를 반환하는지 DB·엔진 없이 직접 구동한다. run==nil 분기는 e.work 맵만
-// 보므로 NewEngine(nil) 로 끝까지 도달한다. %w 로 errWorkControlConflict 센티넬을 감싸므로
-// errors.Is 관계가 함께 보존되는지도 확인한다. 누군가 이 리터럴을 중국어로 되돌리면 실패한다.
+// TestControlWorkNoRunningWorkErrorLocalized 在无运行中的 work 时直接驱动 ControlWork，
+// 确认它真的返回中文错误，无需 DB·引擎。run==nil 分支只读 e.work 表，
+// 因此用 NewEngine(nil) 就能跑到最后。它用 %w 包装 errWorkControlConflict 哨兵，
+// 所以也确认 errors.Is 关系一并保留。一旦有人把这个字面量改回非中文文案即失败。
 func TestControlWorkNoRunningWorkErrorLocalized(t *testing.T) {
 	e := NewEngine(nil)
 	err := e.ControlWork(context.Background(), 42, "pause")
 	if err == nil {
-		t.Fatal("실행 중 work 가 없는데 ControlWork 가 nil 을 반환했습니다")
+		t.Fatal("没有运行中的 work，ControlWork 却返回了 nil")
 	}
 	if !errors.Is(err, errWorkControlConflict) {
 		t.Fatalf("errors.Is(err, errWorkControlConflict) = false, err=%v", err)
 	}
-	assertKoreanError(t, "control_work_no_running", err.Error())
+	assertChineseError(t, "control_work_no_running", err.Error())
 }
 
-// TestEngineUserFacingErrorsLocalized 는 엔진/DB 게이트나 고루틴 타이밍 뒤에 있어 끝까지
-// 구동하기 어려운 나머지 사용자 노출 형식 문자열을 핀 고정한다(finding_retests·
-// finding_traffic 의 게이트 뒤 경로와 같은 방식). 형식 문자열은 대표 인자로 채운 뒤 판정한다.
+// TestEngineUserFacingErrorsLocalized 固定其余被引擎/DB 关卡或协程时序挡在后面、
+// 难以跑完的用户可见格式串(与 finding_retests·
+// finding_traffic 关卡后的路径同样处理)。格式串用代表性参数填充后再判定。
 func TestEngineUserFacingErrorsLocalized(t *testing.T) {
 	for _, c := range []struct {
 		label, msg string
@@ -51,6 +50,6 @@ func TestEngineUserFacingErrorsLocalized(t *testing.T) {
 		{"detached_worker_not_ready", errDetachedWorkerNotReady},
 		{"detached_state_conflict", fmt.Errorf(errIntentCtrlStateConflictFmt, db.ErrIntentStateConflict).Error()},
 	} {
-		assertKoreanError(t, c.label, c.msg)
+		assertChineseError(t, c.label, c.msg)
 	}
 }

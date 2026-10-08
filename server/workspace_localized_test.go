@@ -9,10 +9,10 @@ import (
 	"testing"
 )
 
-// TestWorkspaceErrorConstantsLocalized guards F3b (workspace.go): every user-facing
-// error string the workspace file manager hands back must be Korean (Hangul present,
-// no Chinese Han). Reverting any literal to Chinese fails this test. The constants
-// are DB-independent, so this always runs (no postgres needed).
+// TestWorkspaceErrorConstantsLocalized 是 F3b(workspace.go) 的守卫：工作区文件管理器
+// 返回的每一条用户可见错误字符串都必须是简体中文(含汉字、
+// 不含谚文)。任何字面量改回非中文文案都会让本测试失败。这些常量
+// 不依赖 DB，因此总会运行(不需要 postgres)。
 func TestWorkspaceErrorConstantsLocalized(t *testing.T) {
 	for label, msg := range map[string]string{
 		"illegalPath":      errWsIllegalPath,
@@ -26,26 +26,26 @@ func TestWorkspaceErrorConstantsLocalized(t *testing.T) {
 		"uploadParse":      errWsUploadParse,
 		"noUploadFile":     errWsNoUploadFile,
 	} {
-		assertKoreanError(t, label, msg)
+		assertChineseError(t, label, msg)
 	}
 }
 
-// wsErrBody pulls the {"error": "..."} string writeErr produces.
+// wsErrBody 取出 writeErr 产生的 {"error": "..."} 字符串。
 func wsErrBody(t *testing.T, rec *httptest.ResponseRecorder) string {
 	t.Helper()
 	var out struct {
 		Error string `json:"error"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
-		t.Fatalf("응답 JSON 파싱 실패: %v (본문 %q)", err, rec.Body.String())
+		t.Fatalf("响应 JSON 解析失败: %v (正文 %q)", err, rec.Body.String())
 	}
 	return out.Error
 }
 
-// TestWorkspaceHandlerResponsesLocalized drives the workspace file-manager handlers
-// over real HTTP. They only touch s.m.dir and the filesystem (never s.m.pg), so a
-// temp-dir Manager is enough — no DB. This proves the Korean constants actually land
-// in the HTTP response body, not just that the constants are Korean.
+// TestWorkspaceHandlerResponsesLocalized 用真实 HTTP 驱动工作区
+// 文件管理器处理器。它们只访问 s.m.dir 与文件系统(从不碰 s.m.pg)，
+// 因此一个临时目录 Manager 就够 —— 不需要 DB。这证明中文常量确实
+// 进入了 HTTP 响应正文，而不只是常量本身是中文。
 func TestWorkspaceHandlerResponsesLocalized(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "sub"), 0o755); err != nil {
@@ -67,7 +67,7 @@ func TestWorkspaceHandlerResponsesLocalized(t *testing.T) {
 		{"delete-root", s.wsDelete, httptest.NewRequest(http.MethodDelete, "/api/workspace/delete?path=", nil), 400, errWsCannotDeleteRoot},
 	}
 
-	// list-not-dir needs an actual file to point at.
+	// list-not-dir 需要一个真实存在的文件来指向。
 	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hi"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -78,13 +78,13 @@ func TestWorkspaceHandlerResponsesLocalized(t *testing.T) {
 			rec := httptest.NewRecorder()
 			c.handler(rec, c.req)
 			if rec.Code != c.code {
-				t.Fatalf("status = %d, want %d (본문 %q)", rec.Code, c.code, rec.Body.String())
+				t.Fatalf("status = %d, want %d (正文 %q)", rec.Code, c.code, rec.Body.String())
 			}
 			got := wsErrBody(t, rec)
 			if got != c.want {
 				t.Fatalf("error = %q, want %q", got, c.want)
 			}
-			assertKoreanError(t, c.name, got)
+			assertChineseError(t, c.name, got)
 		})
 	}
 }

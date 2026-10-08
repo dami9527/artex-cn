@@ -7,14 +7,14 @@ import (
 	"testing"
 )
 
-// goals_api.go 의 목표 관리 API 에러 응답을 한국어로 유지하는 회귀 방어 테스트다.
-// 한국어 판정은 F3a 가 만든 assertKoreanError(한글 포함·중국어 한자 0)를, 응답 본문
-// 추출은 task_categories 테스트의 decodeErrorField 를 재사용한다(같은 package server).
+// 回归防御测试：保证 goals_api.go 的目标管理 API 错误响应为简体中文。
+// 中文判定复用 F3a 的 assertChineseError(含汉字·无谚文)，响应正文
+// 提取复用 task_categories 测试的 decodeErrorField(同属 package server)。
 
-// TestGoalErrorConstantsLocalized 는 응답 상수 7종이 전부 한국어임을 단언한다. 목표
-// 조회·저장(目标不存在·읽기 실패)은 Store·DB 를 거쳐야 도달하므로 DB 없는 이 호스트에서
-// 끝까지 못 몰아, 그 문구들은 상수 자체를 단언한다(intent_intervention 선례). 입력 검증·
-// 삭제 장벽 경로는 아래 HTTP 테스트가 응답 본문까지 확인한다.
+// 提取复用 decodeErrorField。TestGoalErrorConstantsLocalized 断言 7 个响应常量
+// 全部为简体中文。目标查询·保存(目标不存在·读取失败)要经 Store·DB 才能到达，
+// 在无 DB 的本机跑不完，这些文案直接断言常量本身(intent_intervention 先例)。
+// 输入校验·删除屏障路径由下面的 HTTP 测试检查到响应正文。
 func TestGoalErrorConstantsLocalized(t *testing.T) {
 	cases := map[string]string{
 		"task_deleting_add":    errGoalTaskDeletingAdd,
@@ -26,22 +26,22 @@ func TestGoalErrorConstantsLocalized(t *testing.T) {
 		"read_after_edit":      errGoalReadAfterEdit,
 	}
 	for label, msg := range cases {
-		assertKoreanError(t, label, msg)
+		assertChineseError(t, label, msg)
 	}
 }
 
-// TestGoalHandlersResponsesLocalized 는 DB 를 건드리지 않고 끝나는 핸들러 경로를 실제
-// HTTP 응답 본문까지 검사해, 상수가 응답에 실제로 실리는 연결을 확인한다. 세 핸들러 모두
-// s.m.Task(맵 조회) → s.engine.beginTaskOperation(sync.Map 기반 삭제 장벽) → 요청 본문
-// 검증 순이라, tasks 맵에 작업 하나와 빈 Engine 만 있으면 Store·DB 없이 돌아간다.
+// TestGoalHandlersResponsesLocalized 把不触碰 DB 就能跑完的处理器路径
+// 跑到真实 HTTP 响应正文，确认常量确实进入响应。三个处理器都按
+// s.m.Task(查表) → s.engine.beginTaskOperation(sync.Map 删除屏障) → 请求正文
+// 校验的顺序，因此 tasks 表里放一个任务加一个空 Engine 就能无 Store·DB 运行。
 func TestGoalHandlersResponsesLocalized(t *testing.T) {
-	// deleting 장벽이 세워진 서버: beginTaskOperation 이 false 를 돌려 409 를 낸다.
+	// 已竖起删除屏障的服务器: beginTaskOperation 返回 false，因此产出 409。
 	deletingServer := func() *Server {
 		s := &Server{m: &Manager{tasks: map[string]*Task{"t1": {ID: "t1"}}}, engine: &Engine{}}
 		s.engine.deleting.Store("t1", true)
 		return s
 	}
-	// 장벽이 없는 서버: beginTaskOperation 이 true 를 돌려 입력 검증까지 진행한다.
+	// 无屏障的服务器: beginTaskOperation 返回 true，因此继续走到输入校验。
 	liveServer := func() *Server {
 		return &Server{m: &Manager{tasks: map[string]*Task{"t1": {ID: "t1"}}}, engine: &Engine{}}
 	}
@@ -68,7 +68,7 @@ func TestGoalHandlersResponsesLocalized(t *testing.T) {
 			name:    "add/task-deleting",
 			handler: func(s *Server) http.HandlerFunc { return s.addGoal },
 			server:  deletingServer,
-			body:    `{"text":"SQL 인젝션 입증"}`,
+			body:    `{"text":"证明 SQL 注入"}`,
 			code:    http.StatusConflict,
 			want:    errGoalTaskDeletingAdd,
 		},
@@ -84,7 +84,7 @@ func TestGoalHandlersResponsesLocalized(t *testing.T) {
 			name:    "edit/task-deleting",
 			handler: func(s *Server) http.HandlerFunc { return s.editGoal },
 			server:  deletingServer,
-			body:    `{"text":"수정된 목표"}`,
+			body:    `{"text":"修改后的目标"}`,
 			gid:     "5",
 			code:    http.StatusConflict,
 			want:    errGoalTaskDeletingEdit,
@@ -114,13 +114,13 @@ func TestGoalHandlersResponsesLocalized(t *testing.T) {
 			rec := httptest.NewRecorder()
 			c.handler(s)(rec, newReq(c.body, c.gid))
 			if rec.Code != c.code {
-				t.Fatalf("상태 코드 = %d, 기대 = %d (본문 %q)", rec.Code, c.code, rec.Body.String())
+				t.Fatalf("状态码 = %d, 期望 = %d (正文 %q)", rec.Code, c.code, rec.Body.String())
 			}
 			got := decodeErrorField(t, rec.Body.Bytes())
 			if got != c.want {
-				t.Fatalf("응답 문구 = %q, 기대 = %q", got, c.want)
+				t.Fatalf("响应文案 = %q, 期望 = %q", got, c.want)
 			}
-			assertKoreanError(t, c.name, got)
+			assertChineseError(t, c.name, got)
 		})
 	}
 }

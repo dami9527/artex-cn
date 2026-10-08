@@ -22,8 +22,8 @@ func TestInterceptDetailHTTP(t *testing.T) {
 		t.Skipf("postgres unavailable (%v) — skipping", err)
 	}
 	t.Cleanup(func() { _ = d.Close() })
-	// Exercise the authenticated HTTP surface without starting unrelated task
-	// schedulers or mutating the process-global tool assembly used by other tests.
+	// 走需要认证的 HTTP 接口，同时不启动无关的任务
+	// 调度器，也不改动其他测试使用的进程级工具装配。
 	m := &Manager{pg: d, interceptor: intercept.New(d)}
 	s := &Server{m: m, jwtKey: []byte("approval-http-test-signing-key")}
 	h := s.Handler()
@@ -93,7 +93,7 @@ func TestInterceptDetailHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 	deletedReply := do(http.MethodGet, fmt.Sprintf("/api/intercept/history/%d/execution?conversation=%d", sourceID, conv.ID), "", true)
-	if deletedReply.Code != 410 || !strings.Contains(deletedReply.Body.String(), "대화가 이미 삭제되었습니다") {
+	if deletedReply.Code != 410 || !strings.Contains(deletedReply.Body.String(), "对话已被删除") {
 		t.Fatalf("deleted conversation: %d %s", deletedReply.Code, deletedReply.Body.String())
 	}
 

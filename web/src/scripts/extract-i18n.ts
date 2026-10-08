@@ -1,33 +1,31 @@
 /**
  * Script: extract-i18n.ts
  *
- * ARTEX 한국어화 — UI 문자열 1차 추출기.
+ * ARTEX —— UI 字符串抽取器。
  *
- * `src/` 아래 모든 `.ts`/`.tsx` 를 TypeScript AST 로 파싱해, 사용자에게 노출되는
- * 하드코딩 중국어 문자열만 뽑아낸다. 추출 대상은 세 종류다.
- *   1) 문자열 리터럴            예) title: "仪表盘"
- *   2) 템플릿 리터럴            예) `已删除 ${n} 个对话` → "已删除 {var0} 个对话"
- *   3) JSX 텍스트 노드          예) <span>故障转移</span>
- * 주석(`//`, `/* *\/`)은 AST 노드가 아니므로 저절로 제외된다. 선행·후행 주석에
- * 들어 있는 중국어는 번역 대상이 아니다(BRIEF: 주석 번역은 우선순위 최하).
+ * 用 TypeScript AST 解析 `src/` 下所有 `.ts`/`.tsx`，只挑出面向用户、
+ * 硬编码在代码里的中文字符串。抽取对象有三类：
+ *   1) 字符串字面量            例) title: "仪表盘"
+ *   2) 模板字面量              例) `已删除 ${n} 个对话` → "已删除 {var0} 个对话"
+ *   3) JSX 文本节点            例) <span>故障转移</span>
+ * 注释(`//`, `/* *\/`)不是 AST 节点，因此天然被排除在外。写在语句前后注释里的
+ * 中文不属于抽取对象。
  *
- * 산출물(web/messages/):
- *   - zh.json          네임스페이스로 중첩된 { 키: "원문 중국어" }  (상류 대조용 원본 보존)
- *   - ko.json          같은 뼈대, 값은 "" (B3 에서 한국어로 채움)
- *   - zh.sources.json  키별 출처(파일:줄)·종류·플레이스홀더 — B2 배선, B3 번역, 드리프트 추적용
+ * 产物(web/messages/)：
+ *   - zh.json          按命名空间嵌套的 { 键: "中文原文" }
+ *   - zh.sources.json  每个键的来源(文件:行号)·类型·占位符 — 供接线、翻译与漂移追踪使用
  *
- * 재추출은 비파괴적이다. 추출이 만들어 내는 최상위 네임스페이스(파일 경로 기반:
- * app·components·lib 등)만 코드에서 새로 갱신하고, 그 밖의 "큐레이션 네임스페이스"
- * (손으로 번역해 둔 nav·search·header 등)는 기존 파일에서 그대로 보존한다. 규칙:
- * 추출 네임스페이스는 인벤토리라 손으로 고치지 않고, 런타임 번역은 큐레이션
- * 네임스페이스에만 둔다. 그래야 재추출이 번역을 덮어쓰지 않는다.
+ * 重新抽取是非破坏性的。只更新抽取产生的顶层命名空间(基于文件路径：
+ * app·components·lib 等)，其余“人工整理命名空间”(手工维护的 nav·search·header 等)
+ * 原样保留。规则：抽取命名空间只是清单，不手工修改；运行时文案只放在人工整理
+ * 命名空间里。这样重新抽取才不会覆盖译文。
  *
- * 네임스페이스는 파일 경로에서 얻는다. 예) src/app/(main)/system/llm/page.tsx
- *   → app.main.system.llm.page  (라우트 그룹 괄호 제거, _폴더의 밑줄 제거)
- * 키는 원문의 sha1 앞 8자다. 순서·파일이 바뀌어도 같은 문구는 같은 키를 받아
- * 재실행 diff 가 작다(상류 업데이트 대조에 유리).
+ * 命名空间取自文件路径。例) src/app/(main)/system/llm/page.tsx
+ *   → app.main.system.llm.page  (去掉路由分组括号、去掉 _文件夹的下划线)
+ * 键是原文 sha1 的前 8 位。顺序或文件发生变化时，同一句话仍得到同一个键，
+ * 重复执行的 diff 很小(便于对照上游更新)。
  *
- * 실행:  npm run extract:i18n
+ * 执行：npm run extract:i18n
  */
 
 import * as ts from "typescript";
@@ -40,10 +38,10 @@ const SRC_DIR = path.resolve(__dirname, "..");
 const MESSAGES_DIR = path.resolve(__dirname, "../../messages");
 const REPO_WEB_DIR = path.resolve(__dirname, "../..");
 
-/** 한자(Han) 1자 이상 포함 여부. UI 번역 대상 판별의 유일한 기준. */
+/** 是否包含至少一个汉字(Han)。判断是否为 UI 文案的唯一标准。 */
 const HAN = /\p{Script=Han}/u;
 
-/** 추출에서 제외할 디렉터리(파싱 도구 자신·빌드 산출물). */
+/** 抽取时排除的目录(解析工具自身与构建产物)。 */
 const SKIP_DIRS = new Set(["scripts", "node_modules", ".next"]);
 
 type Kind = "string" | "template" | "jsx";
@@ -53,20 +51,20 @@ interface Message {
   key: string;
   text: string;
   kind: Kind;
-  placeholders: string[]; // 템플릿의 ${...} 원본 표현식(참고용)
-  occurrences: string[]; // "상대경로:줄"
+  placeholders: string[]; // 模板中 ${...} 的原始表达式(仅供参考)
+  occurrences: string[]; // "相对路径:行号"
 }
 
-/** src 기준 상대경로 → 점으로 이은 네임스페이스. */
+/** 以 src 为基准的相对路径 → 用点连接的命名空间。 */
 function toNamespace(absFile: string): string {
   const rel = path.relative(SRC_DIR, absFile).replace(/\.[tj]sx?$/, "");
   return rel
     .split(path.sep)
     .map((seg) =>
       seg
-        .replace(/^\((.*)\)$/, "$1") // (main) → main  (라우트 그룹)
+        .replace(/^\((.*)\)$/, "$1") // (main) → main  (路由分组)
         .replace(/^_/, "") // _components → components
-        .replace(/[^A-Za-z0-9가-힣]+/g, "-")
+        .replace(/[^A-Za-z0-9\u4e00-\u9fff]+/g, "-")
         .replace(/^-+|-+$/g, ""),
     )
     .filter(Boolean)
@@ -77,7 +75,7 @@ function hashKey(text: string): string {
   return crypto.createHash("sha1").update(text).digest("hex").slice(0, 8);
 }
 
-/** 디렉터리 재귀 순회로 .ts/.tsx 파일 수집. */
+/** 递归遍历目录，收集 .ts/.tsx 文件。 */
 function collectFiles(dir: string, out: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
@@ -90,7 +88,7 @@ function collectFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** 템플릿 리터럴을 "리터럴 부분 + {varN}" 으로 재구성. 반환 null = 리터럴 부분에 한자 없음. */
+/** 把模板字面量重组成「字面量片段 + {varN}」。返回 null = 字面量片段里没有汉字。 */
 function reconstructTemplate(node: ts.TemplateExpression): { text: string; placeholders: string[] } | null {
   let text = node.head.text;
   const placeholders: string[] = [];
@@ -98,21 +96,21 @@ function reconstructTemplate(node: ts.TemplateExpression): { text: string; place
     placeholders.push(span.expression.getText());
     text += `{var${i}}${span.literal.text}`;
   });
-  // 한자가 ${} 안에만 있고 고정 문구에는 없으면, 그 한자는 내부 노드로 따로 잡힌다.
+  // 汉字若只出现在 ${} 内部、固定文案里没有，那些汉字会作为内部节点单独捕获。
   if (!HAN.test(node.head.text) && !node.templateSpans.some((s) => HAN.test(s.literal.text))) {
     return null;
   }
   return { text, placeholders };
 }
 
-/** JSX 텍스트 정규화: 양끝 공백 제거 + 내부 연속 공백/줄바꿈을 한 칸으로(브라우저 렌더 규칙과 동일). */
+/** JSX 文本归一化：去掉首尾空白 + 把内部连续空白/换行压成一个空格(与浏览器渲染规则一致)。 */
 function normalizeJsxText(raw: string): string {
   return raw.replace(/\s+/g, " ").trim();
 }
 
 const messages = new Map<string, Message>(); // "ns\u0000key" → Message
 const scannedFiles = collectFiles(SRC_DIR).sort();
-const capturedLines = new Map<string, Set<number>>(); // 파일 → 추출 노드가 걸린 줄 번호 집합
+const capturedLines = new Map<string, Set<number>>(); // 文件 → 命中抽取节点的行号集合
 let fileWithHan = 0;
 
 function record(ns: string, text: string, kind: Kind, placeholders: string[], relFile: string, line: number) {
@@ -145,7 +143,7 @@ for (const absFile of scannedFiles) {
 
   const visit = (node: ts.Node): void => {
     if (ts.isStringLiteralLike(node) && !ts.isTemplateExpression(node.parent)) {
-      // 문자열 리터럴 + 치환 없는 템플릿. (치환 있는 템플릿의 head/middle 은 여기 안 걸림)
+      // 字符串字面量 + 无替换的模板。(带替换的模板的 head/middle 不会走到这里)
       if (HAN.test(node.text)) {
         record(ns, node.text, "string", [], relFile, lineOf(node.getStart(sf)));
         markLine(node.getStart(sf));
@@ -168,7 +166,7 @@ for (const absFile of scannedFiles) {
   visit(sf);
 }
 
-// --- 중첩 JSON 조립 ---------------------------------------------------------
+// --- 组装嵌套 JSON ---------------------------------------------------------
 type Tree = { [k: string]: Tree | string };
 
 function setNested(root: Tree, nsPath: string, key: string, value: string) {
@@ -181,7 +179,7 @@ function setNested(root: Tree, nsPath: string, key: string, value: string) {
   node[key] = value;
 }
 
-/** 키를 재귀적으로 정렬해 재실행 diff 를 최소화. */
+/** 递归排序键，把重复执行的 diff 降到最小。 */
 function sortTree(t: Tree): Tree {
   const out: Tree = {};
   for (const k of Object.keys(t).sort()) {
@@ -192,12 +190,10 @@ function sortTree(t: Tree): Tree {
 }
 
 const zhTree: Tree = {};
-const koTree: Tree = {};
 const sources: Record<string, { text: string; kind: Kind; placeholders: string[]; occurrences: string[] }> = {};
 
 for (const msg of messages.values()) {
   setNested(zhTree, msg.ns, msg.key, msg.text);
-  setNested(koTree, msg.ns, msg.key, "");
   sources[`${msg.ns}.${msg.key}`] = {
     text: msg.text,
     kind: msg.kind,
@@ -213,7 +209,7 @@ fs.mkdirSync(MESSAGES_DIR, { recursive: true });
 const write = (name: string, data: unknown) =>
   fs.writeFileSync(path.join(MESSAGES_DIR, name), `${JSON.stringify(data, null, 2)}\n`, "utf8");
 
-/** 기존 메시지 파일을 읽는다. 없거나 깨졌으면 빈 트리. */
+/** 读取已有的消息文件。不存在或损坏时返回空树。 */
 function readTree(name: string): Tree {
   try {
     return JSON.parse(fs.readFileSync(path.join(MESSAGES_DIR, name), "utf8")) as Tree;
@@ -223,10 +219,9 @@ function readTree(name: string): Tree {
 }
 
 /**
- * 비파괴 병합. 추출이 새로 만든 트리(fresh)의 최상위 네임스페이스는 코드가 진실이므로
- * 그대로 쓰고, 기존 파일(existing)에만 있는 최상위 네임스페이스(=손으로 번역한 큐레이션
- * 네임스페이스)는 보존한다. 추출 네임스페이스 안의 오래된(상류에서 사라진) 키는 자연히
- * 빠진다(상류 대조에 유리).
+ * 非破坏性合并。抽取新建的树(fresh)里，顶层命名空间以代码为准，直接采用；
+ * 只存在于已有文件(existing)中的顶层命名空间(=手工维护的人工整理命名空间)则保留。
+ * 抽取命名空间里过时的(上游已删除的)键会自然消失(便于对照上游)。
  */
 function mergeCurated(fresh: Tree, existing: Tree): Tree {
   const extractedTop = new Set(Object.keys(fresh));
@@ -238,10 +233,9 @@ function mergeCurated(fresh: Tree, existing: Tree): Tree {
 }
 
 write("zh.json", sortTree(mergeCurated(zhTree, readTree("zh.json"))));
-write("ko.json", sortTree(mergeCurated(koTree, readTree("ko.json"))));
 write("zh.sources.json", sortedSources);
 
-// --- 요약 리포트 ------------------------------------------------------------
+// --- 汇总报告 ------------------------------------------------------------
 const byKind: Record<Kind, number> = { string: 0, template: 0, jsx: 0 };
 const byNs = new Map<string, number>();
 let totalOccurrences = 0;
@@ -251,8 +245,8 @@ for (const msg of messages.values()) {
   totalOccurrences += msg.occurrences.length;
 }
 
-// 커버리지 추정: 한자 포함 소스 줄 중, 추출 노드가 걸린 줄의 비율.
-// 나머지는 거의 주석(=번역 비대상)이다.
+// 覆盖率估算：含汉字的源码行中，命中抽取节点的行所占比例。
+// 其余几乎都是注释(=非抽取对象)。
 let hanLines = 0;
 let capturedHanLines = 0;
 for (const absFile of scannedFiles) {
@@ -270,23 +264,23 @@ for (const absFile of scannedFiles) {
 const topNs = [...byNs.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15);
 
 console.log("─".repeat(64));
-console.log("ARTEX i18n 추출 완료");
+console.log("ARTEX i18n 抽取完成");
 console.log("─".repeat(64));
-console.log(`스캔한 파일            : ${scannedFiles.length} (src/ 아래 .ts/.tsx, scripts 제외)`);
-console.log(`한자 포함 파일         : ${fileWithHan}`);
-console.log(`고유 메시지(키)        : ${messages.size}`);
-console.log(`  ├─ 문자열 리터럴      : ${byKind.string}`);
-console.log(`  ├─ 템플릿 리터럴      : ${byKind.template}`);
-console.log(`  └─ JSX 텍스트         : ${byKind.jsx}`);
-console.log(`총 출현 위치           : ${totalOccurrences} (중복 사용 포함)`);
-console.log(`네임스페이스 수        : ${byNs.size}`);
+console.log(`扫描文件数            : ${scannedFiles.length} (src/ 下的 .ts/.tsx，已排除 scripts)`);
+console.log(`含汉字的文件          : ${fileWithHan}`);
+console.log(`去重后的消息(键)数    : ${messages.size}`);
+console.log(`  ├─ 字符串字面量      : ${byKind.string}`);
+console.log(`  ├─ 模板字面量        : ${byKind.template}`);
+console.log(`  └─ JSX 文本          : ${byKind.jsx}`);
+console.log(`出现位置总数          : ${totalOccurrences} (含重复使用)`);
+console.log(`命名空间数            : ${byNs.size}`);
 console.log("");
-console.log(`한자 포함 소스 줄       : ${hanLines}`);
-console.log(`  └─ 추출로 포착된 줄   : ${capturedHanLines} (${((capturedHanLines / hanLines) * 100).toFixed(1)}%)`);
-console.log(`     나머지 ${hanLines - capturedHanLines} 줄은 대부분 코드 주석(번역 비대상)`);
+console.log(`含汉字的源码行        : ${hanLines}`);
+console.log(`  └─ 被抽取捕获的行    : ${capturedHanLines} (${((capturedHanLines / hanLines) * 100).toFixed(1)}%)`);
+console.log(`     其余 ${hanLines - capturedHanLines} 行大多是代码注释(非抽取对象)`);
 console.log("");
-console.log("메시지 많은 네임스페이스 상위 15:");
+console.log("消息数最多的前 15 个命名空间:");
 for (const [ns, n] of topNs) console.log(`  ${String(n).padStart(4)}  ${ns}`);
 console.log("");
-console.log(`출력: web/messages/{zh.json, ko.json, zh.sources.json}`);
+console.log("输出: web/messages/{zh.json, zh.sources.json}");
 console.log("─".repeat(64));

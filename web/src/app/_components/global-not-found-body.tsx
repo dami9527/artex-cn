@@ -6,8 +6,8 @@ import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 
-// global-not-found 의 본문. 문자열 해석에 훅이 필요해 클라이언트 경계로 분리했다
-// (global-not-found.tsx 자체는 전체 HTML 문서를 반환해야 해서 서버 컴포넌트로 둔다).
+// global-not-found 的正文。解析文案需要 hook，因此拆成客户端边界
+// （global-not-found.tsx 本身要返回完整 HTML 文档，只能保持为服务端组件）。
 export function GlobalNotFoundBody() {
   const t = useTranslations("notFound");
   return (

@@ -6,16 +6,16 @@ import (
 	"testing"
 )
 
-// engine.go·engine_timeout.go·goals.go 의 "표시 전용" 런타임 활동 요약 상수를 한국어로
-// 유지하는 회귀 방어 테스트다. 이 요약들은 대시보드 전사(activity transcript)에 노출되지만
-// node_id 를 달지 않아(작업 단위) 어떤 에이전트 컨텍스트로도 되읽히지 않는다 — 되먹임
-// 경로(planner.workerOutput·get_worker_output 도구)는 intent 범위(node_id)에서 'result'/
-// 'text' 활동만 고르기 때문이다. 그래서 한국어화가 두뇌 입력(BRIEF 경계 #1)을 건드리지
-// 않는다. 반대로 두뇌로 되먹여지는 요약(seed 의도 요약 `完成任务目标…`·기본 설명 `未命名任务`
-// 등)은 원문을 보존하므로 이 테스트 대상이 아니다. 한국어 판정은 assertKoreanError(한글
-// 포함·중국어 한자 0, intercept_archive_localized_test.go)를 재사용한다. [[G132]]
+// 回归防御测试：保证 engine.go·engine_timeout.go·goals.go 里「展示专用」的
+// 运行时活动摘要常量为简体中文。这些摘要会出现在仪表盘记录(activity transcript)里，
+// 但不带 node_id(任务级)，不会被任何智能体上下文读回 —— 回喂
+// 路径(planner.workerOutput·get_worker_output 工具)只在 intent 范围(node_id)内挑
+// 'result'/'text' 活动。因此本地化不会碰大脑输入(BRIEF 边界 #1)。
+// 反之，会回喂给大脑的摘要(seed 意图摘要 `完成任务目标…`·默认说明 `未命名任务`
+// 等)保留原文，不是本测试的对象。中文判定复用 assertChineseError(含
+// 汉字·无谚文，intercept_archive_localized_test.go)。[[G132]]
 func TestRuntimeActivitySummariesLocalized(t *testing.T) {
-	// 포맷 인자 없는 고정 요약: 그대로 한국어여야 한다.
+	// 没有格式参数的固定摘要: 应当保持中文。
 	plain := map[string]string{
 		"goalless_task_done": goallessTaskDoneSummary,
 		"goal_breakdown_r0":  goalBreakdownRound0Summary,
@@ -23,11 +23,11 @@ func TestRuntimeActivitySummariesLocalized(t *testing.T) {
 		"queued_fifo":        queuedFIFOSummary,
 	}
 	for label, msg := range plain {
-		assertKoreanError(t, label, msg)
+		assertChineseError(t, label, msg)
 	}
 
-	// %d 포맷 문자열: 포맷 인자가 살아 있고, 포맷한 결과도 한국어이며 숫자가 실제로
-	// 반영되는지 확인한다.
+	// %d 格式串: 格式参数仍然存在，格式化结果也是中文，且数字确实
+	// 被代入。
 	fmtCases := map[string]string{
 		"planner_round":       plannerRoundSummaryFmt,
 		"timeout_final_round": timeoutFinalRoundSummaryFmt,
@@ -35,12 +35,12 @@ func TestRuntimeActivitySummariesLocalized(t *testing.T) {
 	}
 	for label, f := range fmtCases {
 		if !strings.Contains(f, "%d") {
-			t.Fatalf("%s: 포맷 인자 %%d 가 사라졌습니다: %q", label, f)
+			t.Fatalf("%s: 格式参数 %%d 不见了: %q", label, f)
 		}
 		got := fmt.Sprintf(f, 7)
-		assertKoreanError(t, label, got)
+		assertChineseError(t, label, got)
 		if !strings.Contains(got, "7") {
-			t.Fatalf("%s: 포맷 인자가 결과에 반영되지 않았습니다: %q", label, got)
+			t.Fatalf("%s: 格式参数没有体现在结果里: %q", label, got)
 		}
 	}
 }

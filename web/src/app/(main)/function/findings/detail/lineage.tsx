@@ -27,7 +27,7 @@ export function FindingLineageView({ findingId }: { findingId: string }) {
         setEdges(g.edges ?? []);
       })
       .catch(() => {
-        /* 조회 실패는 무시한다 (finally 에서 로딩 상태 해제) */
+        /* 查询失败直接忽略（finally 中会解除加载状态） */
       })
       .finally(() => {
         if (alive) setLoaded(true);

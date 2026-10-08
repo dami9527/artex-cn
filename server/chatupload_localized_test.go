@@ -8,13 +8,13 @@ import (
 	"testing"
 )
 
-// chatupload.go 의 채팅 첨부 업로드 API 에러 응답을 한국어로 유지하는 회귀 방어 테스트다.
-// 한국어 판정은 F3a 의 assertKoreanError(한글 포함·중국어 한자 0)를, 응답 본문 추출은
-// task_categories 테스트의 decodeErrorField 를 재사용한다(같은 package server).
+// 回归防御测试：保证 chatupload.go 的聊天附件上传 API 错误响应为简体中文。
+// 中文判定复用 F3a 的 assertChineseError(含汉字·无谚文)，响应正文提取复用
+// task_categories 测试的 decodeErrorField(同属 package server)。
 
-// TestChatUploadErrorConstantsLocalized 는 응답 상수 7종이 전부 한국어임을 단언한다.
-// ...못했습니다: 세 종류는 뒤에 err.Error() 를 이어 붙이는 접두 상수라 끝에 ": " 가 붙지만,
-// 한글이 들어 있고 중국어 한자가 없으면 판정을 통과한다.
+// TestChatUploadErrorConstantsLocalized 断言 7 个响应常量全部为简体中文。
+// ...失败: 三种是后面拼 err.Error() 的前缀常量，末尾带 ": "，
+// 只要含汉字且没有谚文就算通过。
 func TestChatUploadErrorConstantsLocalized(t *testing.T) {
 	cases := map[string]string{
 		"scope_invalid": errChatUploadScopeInvalid,
@@ -26,16 +26,16 @@ func TestChatUploadErrorConstantsLocalized(t *testing.T) {
 		"save_failed":   errChatUploadSaveFailed,
 	}
 	for label, msg := range cases {
-		assertKoreanError(t, label, msg)
+		assertChineseError(t, label, msg)
 	}
 }
 
-// TestChatUploadHandlerResponsesLocalized 는 DB 를 건드리지 않고 끝나는 chatUpload 경로를
-// 실제 HTTP 응답 본문까지 검사한다. scope/id 검증은 Manager 를 건드리기 전에 반환하고,
-// no-file 은 scope=session(작업 아님)이라 엔진·DB 없이 임시 디렉터리만으로 끝난다.
-// task-deleting 은 goals 테스트와 같은 삭제 장벽(engine.deleting) 으로 409 를 낸다.
+// TestChatUploadHandlerResponsesLocalized 把不触碰 DB 就能跑完的 chatUpload 路径
+// 跑到真实 HTTP 响应正文。scope/id 校验在触碰 Manager 之前返回，
+// no-file 的 scope=session(非任务)，因此只靠临时目录就能跑完，不需要引擎·DB。
+// task-deleting 用与 goals 测试相同的删除屏障(engine.deleting) 产出 409。
 func TestChatUploadHandlerResponsesLocalized(t *testing.T) {
-	// 필드만 있고 "file" 이 없는 multipart 본문 — ParseMultipartForm 은 통과하되 파일 0건.
+	// 只有字段、没有 "file" 的 multipart 正文 —— ParseMultipartForm 通过，但文件为 0 件。
 	noFileBody := func() (*bytes.Buffer, string) {
 		var buf bytes.Buffer
 		mw := multipart.NewWriter(&buf)
@@ -50,27 +50,27 @@ func TestChatUploadHandlerResponsesLocalized(t *testing.T) {
 		rec := httptest.NewRecorder()
 		s.chatUpload(rec, req)
 		if rec.Code != http.StatusBadRequest {
-			t.Fatalf("상태 코드 = %d, 기대 = 400 (본문 %q)", rec.Code, rec.Body.String())
+			t.Fatalf("状态码 = %d, 期望 400 (正文 %q)", rec.Code, rec.Body.String())
 		}
 		if got := decodeErrorField(t, rec.Body.Bytes()); got != errChatUploadScopeInvalid {
-			t.Fatalf("응답 문구 = %q, 기대 = %q", got, errChatUploadScopeInvalid)
+			t.Fatalf("响应文案 = %q, 期望 = %q", got, errChatUploadScopeInvalid)
 		}
-		assertKoreanError(t, "scope-invalid", errChatUploadScopeInvalid)
+		assertChineseError(t, "scope-invalid", errChatUploadScopeInvalid)
 	})
 
 	t.Run("bad-id", func(t *testing.T) {
 		s := &Server{}
-		// scope=session(작업 아님)이라 Manager 를 건드리기 전에 id 검증에서 반환한다.
+		// scope=session(非任务)，因此在触碰 Manager 之前的 id 校验处返回。
 		req := httptest.NewRequest(http.MethodPost, "/api/chat/upload?scope=session&id=../evil", nil)
 		rec := httptest.NewRecorder()
 		s.chatUpload(rec, req)
 		if rec.Code != http.StatusBadRequest {
-			t.Fatalf("상태 코드 = %d, 기대 = 400 (본문 %q)", rec.Code, rec.Body.String())
+			t.Fatalf("状态码 = %d, 期望 400 (正文 %q)", rec.Code, rec.Body.String())
 		}
 		if got := decodeErrorField(t, rec.Body.Bytes()); got != errChatUploadBadID {
-			t.Fatalf("응답 문구 = %q, 기대 = %q", got, errChatUploadBadID)
+			t.Fatalf("响应文案 = %q, 期望 = %q", got, errChatUploadBadID)
 		}
-		assertKoreanError(t, "bad-id", errChatUploadBadID)
+		assertChineseError(t, "bad-id", errChatUploadBadID)
 	})
 
 	t.Run("no-file", func(t *testing.T) {
@@ -81,12 +81,12 @@ func TestChatUploadHandlerResponsesLocalized(t *testing.T) {
 		rec := httptest.NewRecorder()
 		s.chatUpload(rec, req)
 		if rec.Code != http.StatusBadRequest {
-			t.Fatalf("상태 코드 = %d, 기대 = 400 (본문 %q)", rec.Code, rec.Body.String())
+			t.Fatalf("状态码 = %d, 期望 400 (正文 %q)", rec.Code, rec.Body.String())
 		}
 		if got := decodeErrorField(t, rec.Body.Bytes()); got != errChatUploadNoFile {
-			t.Fatalf("응답 문구 = %q, 기대 = %q", got, errChatUploadNoFile)
+			t.Fatalf("响应文案 = %q, 期望 = %q", got, errChatUploadNoFile)
 		}
-		assertKoreanError(t, "no-file", errChatUploadNoFile)
+		assertChineseError(t, "no-file", errChatUploadNoFile)
 	})
 
 	t.Run("task-deleting", func(t *testing.T) {
@@ -96,11 +96,11 @@ func TestChatUploadHandlerResponsesLocalized(t *testing.T) {
 		rec := httptest.NewRecorder()
 		s.chatUpload(rec, req)
 		if rec.Code != http.StatusConflict {
-			t.Fatalf("상태 코드 = %d, 기대 = 409 (본문 %q)", rec.Code, rec.Body.String())
+			t.Fatalf("状态码 = %d, 期望 = 409 (正文 %q)", rec.Code, rec.Body.String())
 		}
 		if got := decodeErrorField(t, rec.Body.Bytes()); got != errChatUploadTaskDeleting {
-			t.Fatalf("응답 문구 = %q, 기대 = %q", got, errChatUploadTaskDeleting)
+			t.Fatalf("响应文案 = %q, 期望 = %q", got, errChatUploadTaskDeleting)
 		}
-		assertKoreanError(t, "task-deleting", errChatUploadTaskDeleting)
+		assertChineseError(t, "task-deleting", errChatUploadTaskDeleting)
 	})
 }

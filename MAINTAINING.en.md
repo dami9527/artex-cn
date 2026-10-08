@@ -1,15 +1,16 @@
 # Upstream Sync and Preventing Translation Drift (Maintainer Guide)
 
-[한국어](MAINTAINING.md) · English
+[中文](MAINTAINING.md) · English
 
 This document lays out the procedure a **maintainer** follows to keep up with changes in the
-upstream repository [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX) while maintaining the
-Korean localization. Contribution scope, legal responsibility, and the localization policy live in
+upstream repository [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX) while maintaining this
+edition's Simplified-Chinese localization. Contribution scope, legal responsibility, and the
+localization policy live in
 [CONTRIBUTING.en.md](CONTRIBUTING.en.md); user-facing guidance lives in [README.en.md](README.en.md).
 This document therefore focuses solely on **how that policy is actually enforced**.
 
 The core goal of the localization can be summed up in one sentence: **preserve the original's
-judgment performance exactly, while translating only the user-facing output into Korean**. That
+judgment performance exactly, while keeping the user-facing output in Simplified Chinese**. That
 boundary is easy to blur every time upstream updates, so the procedures and checks below prevent
 translation drift.
 
@@ -17,20 +18,22 @@ translation drift.
 
 ## 1. The localization structure at a glance
 
-This repository **forks** upstream ARTEX and stacks Korean localization commits on top of its
+This repository **forks** upstream ARTEX and stacks localization commits on top of its
 history. Every commit on upstream `main` is contained in this repository's history, with the
 localization commits added above them. Bringing in an upstream change therefore becomes a matter of
 "inspecting the difference against upstream `main`, then separating what to preserve from what to
-translate and applying each accordingly."
+adapt and applying each accordingly."
 
 The deliverables fall into three groups.
 
 - **Assets kept in the original language** (section 2). Translating them breaks performance or the
   ability to diff against upstream.
 - **Output-language enforcement fixed in code.** `langDirective()` in `agent/prompt.go` appends to
-  the end of each role's system prompt the instruction "write user-facing output in Korean."
-- **User-facing strings that are translated into Korean.** The UI lives in `web/messages/ko.json`;
-  the server's user-facing response strings live in named constants in each Go file.
+  the end of each role's system prompt the instruction "write user-facing output in Simplified
+  Chinese."
+- **User-facing strings that are written in Simplified Chinese.** The UI lives in
+  `web/messages/zh.json`; the server's user-facing response strings live in named constants in each
+  Go file.
 
 ---
 
@@ -45,11 +48,11 @@ an upstream change touches these assets, **apply it as is, without translating**
 - **Strings that serve both as display and as agent input.** Some text that appears on the activity
   timeline while also being fed back as planner/reporter input context (task-abort reasons,
   interception-block messages, traffic-evidence helpers, and so on) is kept in the original, because
-  a single record serves two purposes. The rationale is recorded case by case under the "brain
-  boundary records" in `work/DECISIONS-FOR-JIWOO.md`.
-- **The original Chinese documents and strings.** Documents keep the original in `README.zh.md` and
-  UI strings keep it in `web/messages/zh.json`, so that diffing against upstream changes stays easy.
-  Korean translations are filled in only in `web/messages/ko.json`.
+  a single record serves two purposes. Each such trade-off is recorded in the commit message that
+  introduced it; use `git log -S'<the string>'` to trace it.
+- **The upstream originals.** Documents keep the upstream Chinese original in `README.zh.md`, so
+  that diffing against upstream changes stays easy. The UI ships a single catalog,
+  `web/messages/zh.json`; there is no parallel translation file to keep in sync.
 - **Command, payload, code, URL, identifier, and log originals.** These are the originals needed for
   analysis, so they are not translated. Go code comments are the lowest priority as well and stay in
   the original until the upstream diff is finished.
@@ -102,11 +105,10 @@ The classification criteria are as follows.
 - If `agent/promptcatalog.go` / the `agent_prompts` seed, or the display-and-input strings of
   section 2, changed → **apply as is, without translating**.
 - If Go backend logic (`db/`, `llmrec/`, `server/`, and so on) changed → apply the logic as is, but
-  check for **newly introduced user-facing strings** (`writeErr`, and the like) and translate those
-  into Korean constants.
+  check for **newly introduced user-facing strings** (`writeErr`, and the like) and write those as
+  Simplified-Chinese constants.
 - If the UI (`web/src/**`) changed and introduced **new screen strings** → do not hard-code them;
-  add them under the same key to `web/messages/zh.json` (original) and `web/messages/ko.json`
-  (translation).
+  add them to `web/messages/zh.json` under the same key.
 - If **upstream indicators pinned by the detection rules** changed (the prober User-Agent in
   `enrich/enrich.go`, the self-update User-Agent in `selfupdate/`, the audit marker in
   `guard/guard.go`, the destructive-command deny list in `db/db.go`, the default listen and
@@ -118,10 +120,9 @@ The classification criteria are as follows.
 
 ### 4.3 Apply
 
-Merge or cherry-pick feature by feature, then translate the new strings you separated out in 4.2 into
-Korean. During the merge it is easy for `ko.json` / `zh.json` keys to fall out of sync or for an
-original string to leak into a user-facing slot, so always run the checks in section 5 right after
-applying.
+Merge or cherry-pick feature by feature, then rewrite the new strings you separated out in 4.2 in
+Simplified Chinese. During the merge it is easy for a hard-coded upstream string to survive in a
+user-facing slot, so always run the checks in section 5 right after applying.
 
 > **Example (unapplied commits as of 2026-10-05).** The `git fetch upstream` result shows upstream
 > `main` ahead at `b55ceb1`, with 2 commits (`86729b6`, the model-fallback approval-token metering
@@ -129,46 +130,33 @@ applying.
 > Go logic such as `db/llm_usage.go`, `llmrec/llmrec.go`, `server/intercept.go`, and `server/server.go`,
 > and `web/src/app/(main)/system/intercept/page.tsx`, `web/src/lib/api.ts`, `web/src/lib/mock/handler.ts`,
 > and `web/src/lib/types.ts`. The maintainer therefore applies the Go logic as is and only extracts and
-> translates the new screen strings introduced on the intercept settings page into `ko.json` / `zh.json`
-> keys. (These two commits had not yet been applied at the time this document was written, so the base
-> stays at `d003372`.)
+> writes the new screen strings introduced on the intercept settings page as new `zh.json` keys. (These
+> two commits had not yet been applied at the time this document was written, so the base stays at
+> `d003372`.)
 
 ---
 
-## 5. Translation-symmetry and drift checks
+## 5. Localization-integrity and drift checks
 
-After applying an upstream change or doing translation work, verify the following three things.
+After applying an upstream change or doing localization work, verify the following things.
 
-### 5.1 ko ↔ zh message symmetry and user-facing CJK
+### 5.1 Message-catalog integrity and the no-Korean gate
 
-The keys of `ko.json` and `zh.json` must be exactly the same, and no Chinese characters may remain in
-the `ko.json` values. The script below prints three numbers.
+`web/messages/zh.json` is the only message catalog, so its keys must be exactly the ones the
+components request, and no value may still contain Hangul or an untranslated English literal. The
+repository-wide gate below covers the Hangul half mechanically.
 
 ```bash
-python3 - <<'PY'
-import json, re
-ko = json.load(open('web/messages/ko.json'))
-zh = json.load(open('web/messages/zh.json'))
-def flatten(d, p=''):
-    out = {}
-    if isinstance(d, dict):
-        for k, v in d.items(): out.update(flatten(v, p + '/' + k))
-    elif isinstance(d, list):
-        for i, v in enumerate(d): out.update(flatten(v, p + '/' + str(i)))
-    else: out[p] = d
-    return out
-fk, fz = flatten(ko), flatten(zh)
-han = re.compile(r'[㐀-鿿]')
-print('ko leaf keys :', len(fk))
-print('zh leaf keys :', len(fz))
-print('key symdiff  :', len(set(fk) ^ set(fz)))        # must be 0
-print('ko vals w/CJK:', sum(1 for v in fk.values() if isinstance(v, str) and han.search(v)))  # must be 0
-PY
+python3 -I scripts/check-no-korean.py    # exits non-zero if any text file under the working tree still contains Hangul
 ```
 
-Baseline (2026-10-05): `ko leaf keys = 2950`, `zh leaf keys = 2950`, `key symdiff = 0`,
-`ko vals w/CJK = 0`. The key count can grow as upstream changes are applied, but ko and zh must always
-be equal, and `key symdiff` and `ko vals w/CJK` must always be 0.
+A clean run prints `[+] 未发现韩文残留`. The script reads the text files under the working tree
+(skipping `.git`, dependency directories such as `node_modules`, build output, and binaries), so a
+Hangul string that slips into a Go constant, a TSX component, a test name, or a document fails the
+gate. There is no allowlist: nothing in this repository should ever need one.
+
+For the other half — a value left in English — there is no mechanical check, so review the `zh.json`
+diff by hand and confirm with the build-output check in 5.3.
 
 ### 5.2 Confirm that brain assets keep their original language
 
@@ -182,14 +170,20 @@ python3 -c "import re; han=re.compile(r'[㐀-鿿]'); t=open('agent/promptcatalog
 Baseline (2026-10-05): `promptcatalog.go CJK lines = 70`. If this number drops sharply, check whether
 the brain body was translated.
 
-### 5.3 Make sure no original language leaks into the build output
+### 5.3 Make sure no untranslated string leaks into the build output
 
-After exporting the UI statically, Chinese appearing in the prerendered HTML means a missing
-translation.
+After exporting the UI statically, Hangul or a hard-coded English string in the prerendered HTML means
+a missing translation. (`web/out/` is skipped by the repository-wide gate, so check it here.)
 
 ```bash
 cd web && npm ci && NEXT_EXPORT=1 npm run build   # generates out/
-# check that the visible text in out/**/*.html contains 0 Chinese characters
+python3 - <<'PY'
+import pathlib, re
+hangul = re.compile(r'[\uac00-\ud7a3\u1100-\u11ff\u3130-\u318f]')
+hits = [p for p in pathlib.Path('out').rglob('*.html')
+        if hangul.search(p.read_text(encoding='utf-8', errors='ignore'))]
+print('out/**/*.html files with Hangul:', len(hits))   # must be 0
+PY
 ```
 
 ### 5.4 Make sure the detection indicators still match the upstream source
@@ -240,15 +234,15 @@ If you do not have Go locally, you can run the same thing under Docker.
 
 ```bash
 docker run --rm -v "$PWD":/src -w /src \
-  -v artexko-gomod:/go/pkg/mod -v artexko-gocache:/root/.cache/go-build \
+  -v artexcn-gomod:/go/pkg/mod -v artexcn-gocache:/root/.cache/go-build \
   golang:1.26 sh -c 'go build ./... && go vet ./... && go test ./... -count=1'
 ```
 
-When you translate a user-facing string, add a regression test (`*_localized_test.go`) that asserts
-that string as well, so that if a later upstream change pulls Chinese back in, the test catches it.
-Always do translation verification with a capable (frontier-class) model. Low-cost, small models can
-revert their output to the original language, so you must not judge whether a translation applied from
-their output alone.
+When you localize a user-facing string, add a regression test (`*_localized_test.go`) that asserts
+that string as well, so that if a later upstream change reintroduces the upstream wording, the test
+catches it. Always do localization verification with a capable (frontier-class) model. Low-cost,
+small models can revert their output to the instruction body's language, so you must not judge
+whether the localization applied from their output alone.
 
 ---
 
@@ -260,11 +254,11 @@ a following one. Doing so lets the next maintainer confirm "how far things have 
 one place.
 
 Commit messages follow the [commit-message rules in CONTRIBUTING.en.md](CONTRIBUTING.en.md#commit-messages).
-For example, an upstream-sync commit is written like this (the description is in Korean, per this
-repository's actual rule).
+For example, an upstream-sync commit is written like this (the description is in Simplified Chinese,
+per this repository's actual rule).
 
 ```
-chore(upstream): 상류 d003372..b55ceb1 반영 (intercept 토큰 계량) + 신규 UI 문자열 번역
+chore(upstream): 同步上游 d003372..b55ceb1（intercept token 计量）+ 新增 UI 文案翻译
 ```
 
 ---
@@ -279,7 +273,7 @@ reverts.
 ### 8.1 Check the repository's CI status by specifying the repository
 
 This repository is a fork of upstream ARTEX, so the local `git remote` has both `origin`
-(jiwoochris/artex-ko) and `upstream` (Autumn-27/ARTEX) registered (see section 3). In this state, if
+(dami9527/artex-cn) and `upstream` (Autumn-27/ARTEX) registered (see section 3). In this state, if
 you do not specify a repository in a `gh` command, `gh` **picks the upstream repository as the
 default** and shows you run results from upstream, which does not have our workflows. You can then see
 upstream CI green and **mistakenly think our CI passed**, or judge our workflows (`ci.yml`,
@@ -288,8 +282,8 @@ upstream CI green and **mistakenly think our CI passed**, or judge our workflows
 So when checking CI, always name the repository explicitly.
 
 ```bash
-gh run list -R jiwoochris/artex-ko --workflow ci.yml --limit 5
-gh run list -R jiwoochris/artex-ko --workflow detections.yml --limit 5
+gh run list -R dami9527/artex-cn --workflow ci.yml --limit 5
+gh run list -R dami9527/artex-cn --workflow detections.yml --limit 5
 ```
 
 Once set, you can make `gh` default to our repository even when you omit `-R`. Note, however, that
@@ -297,38 +291,33 @@ this setting is a **local gh setting** and is not committed to the repository, s
 again on a new machine or a new checkout.
 
 ```bash
-gh repo set-default jiwoochris/artex-ko
-gh repo set-default --view   # check that jiwoochris/artex-ko shows up
+gh repo set-default dami9527/artex-cn
+gh repo set-default --view   # check that dami9527/artex-cn shows up
 ```
 
 ### 8.2 Check external links in documents with GET, like a browser
 
-Section 7 of the defense guide ([`docs/defense-en.md`](docs/defense-en.md) ·
-[`defense-ko.md`](docs/defense-ko.md)) carries links to Korean official channels (boho.or.kr,
-fsec.or.kr, pipc.go.kr). When checking whether these links are alive, using only `curl -I` (a HEAD
-request) or the default User-Agent will **mistake a healthy link for a broken one**. Korean public and
-security agency sites refuse a simple check for three reasons.
-
-- **They reject HEAD requests.** For example, fsec.or.kr returns 400 to `curl -I` (HEAD).
-- **They block the default `curl` User-Agent.** fsec.or.kr and pipc.go.kr return 400 even to GET
-  requests sent with the default UA (they return 200 when sent with a browser UA).
-- **They redirect to a different address.** pipc.go.kr redirects twice, from `www.pipc.go.kr` to
-  `pipc.go.kr/np/`, so if you do not follow redirects you miss the final status.
+Section 7 of the defense guide ([`docs/defense-zh.md`](docs/defense-zh.md) ·
+[`docs/defense-en.md`](docs/defense-en.md)) carries links to official Chinese channels
+(cert.org.cn, cac.gov.cn, 12377.cn). When checking whether these links are alive, using only `curl
+-I` (a HEAD request) or the default User-Agent will **mistake a healthy link for a broken one**:
+public-agency and security sites commonly reject HEAD requests, block the default `curl`
+User-Agent, or redirect to a different address, and some are reachable only from certain networks.
 
 So check links **with a browser User-Agent, with GET, following redirects**.
 
 ```bash
 UA='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
-for u in https://www.boho.or.kr https://www.fsec.or.kr https://www.pipc.go.kr; do
+for u in https://www.cert.org.cn https://www.cac.gov.cn https://www.12377.cn; do
   curl -sS -L -A "$UA" -o /dev/null -w "$u -> %{http_code} %{url_effective}\n" "$u"
 done
 ```
 
 A final status code of 200 means the link is valid. If the status code comes back 400 or 403, first
 suspect that the link is not broken but that **your checking method was blocked by the server's access
-policy**, and re-check by eliminating factors one at a time: HEAD, the default UA, and not following
-redirects. (As of the 2026-10-06 check, all three links return 200 with the method above, with
-pipc.go.kr returning 200 after two redirects.)
+policy** (or that the host is not reachable from where you are checking), and re-check by eliminating
+factors one at a time: HEAD, the default UA, and not following redirects. Because reachability of
+these hosts varies by network, record the result of each run in the base-update record (section 7).
 
 This manual procedure is automated as-is by `scripts/check-external-links.py`. It gathers the external
 links outside code fences and inline code from every tracked `.md` (excluding reserved and placeholder
@@ -406,7 +395,7 @@ current repository structure by reproducing the binaries job locally.
 ### 9.4 Still a pending decision: the Docker image namespace
 
 The docker job currently leaves the image name as upstream's `autumn27/artex`, and which namespace this
-fork should publish under is a separate decision (`work/DECISIONS-FOR-JIWOO.md`, item 8). Until that is
+fork should publish under is still a pending decision. Until that is
 decided, the Docker Hub secrets are not set, and in the meantime a release publishes only the binary
 zips and the checksum (the docker job is skipped).
 

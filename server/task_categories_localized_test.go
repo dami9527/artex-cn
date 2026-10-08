@@ -11,22 +11,22 @@ import (
 	"github.com/Autumn-27/artex/db"
 )
 
-// decodeErrorField pulls the "error" string out of a writeErr JSON body so the
-// Korean-ness of the user-facing message can be asserted.
+// decodeErrorField 从 writeErr 的 JSON 正文里取出 "error" 字符串，
+// 以便断言用户可见文案的中文属性。
 func decodeErrorField(t *testing.T, body []byte) string {
 	t.Helper()
 	var resp struct {
 		Error string `json:"error"`
 	}
 	if err := json.Unmarshal(body, &resp); err != nil {
-		t.Fatalf("응답 JSON 파싱 실패: %v (본문 %s)", err, body)
+		t.Fatalf("响应 JSON 解析失败: %v (正文 %s)", err, body)
 	}
 	return resp.Error
 }
 
-// TestTaskCategoryErrorConstantsLocalized pins that every user-facing error
-// literal in task_categories.go is Korean (Hangul present, no Chinese Han). If
-// anyone reverts one to Chinese, this fails.
+// TestTaskCategoryErrorConstantsLocalized 固定 task_categories.go 里
+// 每一条用户可见错误字面量都是简体中文(含汉字、不含谚文)。
+// 一旦有人把其中某条改回非中文文案，本测试即失败。
 func TestTaskCategoryErrorConstantsLocalized(t *testing.T) {
 	cases := map[string]string{
 		"errTaskCatRequestTooLarge": errTaskCatRequestTooLarge,
@@ -37,48 +37,48 @@ func TestTaskCategoryErrorConstantsLocalized(t *testing.T) {
 		"errTaskCatBatchSizeFmt":    fmt.Sprintf(errTaskCatBatchSizeFmt, db.MaxTaskCategoryBatchSize),
 	}
 	for label, msg := range cases {
-		assertKoreanError(t, label, msg)
+		assertChineseError(t, label, msg)
 	}
 }
 
-// TestTaskCategoryResponsesLocalized drives the validators that never touch the
-// database and confirms the Korean message actually lands in the HTTP body. The
-// request decoder and id parser work on the body alone, writeTaskCategoryError
-// maps a db sentinel, and the batch-size guard returns before s.m is read.
+// TestTaskCategoryResponsesLocalized 驱动那些从不触碰数据库的校验器，
+// 确认中文文案确实进入 HTTP 正文。
+// 请求解码器与 id 解析器只看正文，writeTaskCategoryError
+// 映射 db 哨兵，批量大小守卫在读取 s.m 之前就返回。
 func TestTaskCategoryResponsesLocalized(t *testing.T) {
-	// decodeTaskCategoryRequest — body-only validation, no DB.
+	// decodeTaskCategoryRequest —— 只看正文的校验，不涉及 DB。
 	decodeCase := func(name, body string) string {
 		req := httptest.NewRequest(http.MethodPost, "/api/task-categories", strings.NewReader(body))
 		rec := httptest.NewRecorder()
 		if _, ok := decodeTaskCategoryRequest(rec, req); ok {
-			t.Fatalf("%s: 검증이 통과해서는 안 됩니다 (status=%d)", name, rec.Code)
+			t.Fatalf("%s: 校验不应通过 (status=%d)", name, rec.Code)
 		}
 		return decodeErrorField(t, rec.Body.Bytes())
 	}
-	assertKoreanError(t, "name-empty", decodeCase("name-empty", `{"name":"   "}`))
-	assertKoreanError(t, "name-too-long",
-		decodeCase("name-too-long", `{"name":"`+strings.Repeat("가", db.MaxTaskCategoryNameRunes+1)+`"}`))
-	// The body exceeds maxTaskCategoryRequestBytes, so MaxBytesReader errors mid-decode.
-	assertKoreanError(t, "too-large",
+	assertChineseError(t, "name-empty", decodeCase("name-empty", `{"name":"   "}`))
+	assertChineseError(t, "name-too-long",
+		decodeCase("name-too-long", `{"name":"`+strings.Repeat("字", db.MaxTaskCategoryNameRunes+1)+`"}`))
+	// 正文超过 maxTaskCategoryRequestBytes，因此 MaxBytesReader 在解码途中报错。
+	assertChineseError(t, "too-large",
 		decodeCase("too-large", `{"name":"`+strings.Repeat("a", maxTaskCategoryRequestBytes+1)+`"}`))
 
-	// parseCategoryIDField — a zero/negative category_id is rejected.
+	// parseCategoryIDField —— 为零/负的 category_id 被拒绝。
 	rec := httptest.NewRecorder()
 	if _, ok := parseCategoryIDField(rec, json.RawMessage("0")); ok {
-		t.Fatal("invalid id 가 통과해서는 안 됩니다")
+		t.Fatal("非法 id 不应通过")
 	}
-	assertKoreanError(t, "invalid-id", decodeErrorField(t, rec.Body.Bytes()))
+	assertChineseError(t, "invalid-id", decodeErrorField(t, rec.Body.Bytes()))
 
-	// writeTaskCategoryError — the name-conflict sentinel maps to the Korean 409.
+	// writeTaskCategoryError —— 名称冲突哨兵映射成中文 409。
 	rec = httptest.NewRecorder()
 	writeTaskCategoryError(rec, db.ErrTaskCategoryNameConflict)
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("conflict status=%d, want 409", rec.Code)
 	}
-	assertKoreanError(t, "name-conflict", decodeErrorField(t, rec.Body.Bytes()))
+	assertChineseError(t, "name-conflict", decodeErrorField(t, rec.Body.Bytes()))
 
-	// Batch move — an empty selection is rejected before any DB access, so a
-	// zero-value Server reaches the guard without dereferencing s.m.
+	// 批量移动 —— 空选择在任何 DB 访问之前就被拒绝，
+	// 因此零值 Server 无需解引用 s.m 就能到达该守卫。
 	req := httptest.NewRequest(http.MethodPost, "/api/tasks/category/batch",
 		strings.NewReader(`{"task_ids":[],"category_id":null}`))
 	rec = httptest.NewRecorder()
@@ -86,5 +86,5 @@ func TestTaskCategoryResponsesLocalized(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("empty batch status=%d, want 400 (body %s)", rec.Code, rec.Body.String())
 	}
-	assertKoreanError(t, "batch-size", decodeErrorField(t, rec.Body.Bytes()))
+	assertChineseError(t, "batch-size", decodeErrorField(t, rec.Body.Bytes()))
 }

@@ -7,38 +7,38 @@ import (
 	"unicode"
 )
 
-// TestSkillZipErrorsLocalized guards the F3b skill_zip.go bundle: every user-facing
-// skill-upload error response (fsUploadSkill surfaces these via
-// writeErr(400, err.Error()), see server_mgmt.go) must be Korean, and no zip-method
-// display name may stay Chinese. Reverting any of these literals to Chinese fails here.
+// TestSkillZipErrorsLocalized 是 F3b skill_zip.go 这一束的守卫：
+// 每一条用户可见的 skill 上传错误响应(fsUploadSkill 经
+// writeErr(400, err.Error()) 暴露，见 server_mgmt.go)都必须是中文，
+// 且任何压缩方法显示名都不得残留旧文案。任何一条改回旧文案都会让本测试失败。
 func TestSkillZipErrorsLocalized(t *testing.T) {
-	// Message constants rendered with sample arguments.
-	assertKoreanError(t, "errSkillZipParse",
+	// 用样例参数渲染的消息常量。
+	assertChineseError(t, "errSkillZipParse",
 		fmt.Errorf(errSkillZipParse, fmt.Errorf("boom")).Error())
-	assertKoreanError(t, "errSkillZipEncrypted",
+	assertChineseError(t, "errSkillZipEncrypted",
 		fmt.Sprintf(errSkillZipEncrypted, "demo/SKILL.md"))
-	assertKoreanError(t, "errSkillZipUnsupported",
+	assertChineseError(t, "errSkillZipUnsupported",
 		fmt.Sprintf(errSkillZipUnsupported, "LZMA", 14, "demo/SKILL.md"))
 
-	// A non-zip upload must reach the user as a Korean hint, not a raw stdlib error.
+	// 非 zip 上传必须以中文提示到达用户，而不是原始的 stdlib 错误。
 	if _, err := newSkillZipReader([]byte("this is not a zip archive")); err == nil {
-		t.Fatal("비-zip 입력은 오류를 반환해야 합니다")
+		t.Fatal("非 zip 输入必须返回错误")
 	} else {
-		assertKoreanError(t, "newSkillZipReader", err.Error())
-		if !strings.Contains(err.Error(), "압축 파일") {
-			t.Fatalf("parse error = %q, want '압축 파일' 안내", err.Error())
+		assertChineseError(t, "newSkillZipReader", err.Error())
+		if !strings.Contains(err.Error(), "压缩包") {
+			t.Fatalf("parse error = %q, want '压缩包' 提示", err.Error())
 		}
 	}
 
-	// No zip-method display name may carry a Chinese Han ideograph; the two
-	// translated ones (AES, unknown fallback) must be Korean.
+	// 任何压缩方法显示名都不得残留谚文；
+	// 两个已本地化的(AES、未知回落)必须是中文。
 	for m, name := range zipMethodNames {
 		for _, r := range name {
-			if unicode.Is(unicode.Han, r) {
-				t.Fatalf("zipMethodNames[%d] = %q 에 중국어 한자가 남아 있습니다", m, name)
+			if unicode.Is(unicode.Hangul, r) {
+				t.Fatalf("zipMethodNames[%d] = %q 仍残留谚文", m, name)
 			}
 		}
 	}
-	assertKoreanError(t, "zipMethodName(AES)", zipMethodName(zipMethodAES))
-	assertKoreanError(t, "zipMethodName(unknown)", zipMethodName(0xffff))
+	assertChineseError(t, "zipMethodName(AES)", zipMethodName(zipMethodAES))
+	assertChineseError(t, "zipMethodName(unknown)", zipMethodName(0xffff))
 }

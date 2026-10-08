@@ -1,24 +1,21 @@
 name: detections
-# 탐지 규칙(Sigma·Suricata·ATT&CK 레이어)이 바뀌는 푸시·PR 마다, 그 규칙이 실제로
-# 발화하고, 여러 SIEM 백엔드로 변환되며, 커버리지 레이어가 규칙과 일치하고, 지표가 상류
-# 소스와 여전히 맞으며, SigmaHQ 관례 전체 검증을 통과하는지 재현 테스트로 검증한다. 규칙만
-# 바꾸고 테스트·레이어를 갱신하지 않은 변경은 여기서 빨갛게 드러난다. CONTRIBUTING.md 와
-# detections/tests/README.md 가 약속하는 "여덟 테스트가 기여 계약을 기계적으로 강제한다"를
-# 머지 게이트로 실제로 뒷받침하는 워크플로다. Go 빌드·정적 분석·테스트는 ci.yml 이 맡는다.
-# 여덟 테스트에 더해, 규칙이 아닌 두 게이트도 같은 머지 게이트에서 돈다: 하네스 레지스트리
-# 동기 검사와, 호스트 분류 도구(detections/triage/artex_host_triage.py)의 자가 테스트다.
-# 둘 다 여덟 규칙 테스트와 별개이고 run-all.sh 가 똑같이 돌린다.
+# 每当改动检测规则（Sigma、Suricata、ATT&CK 图层）的推送与 PR，都用可复现测试验证这
+# 些规则确实会触发、能转换到多种 SIEM 后端、覆盖率图层与规则一致、指标仍与上游源码
+# 吻合，并通过 SigmaHQ 惯例的全量校验。只改规则、没更新测试与图层的改动会在这里显红。
+# 本工作流把 CONTRIBUTING.md 与 detections/tests/README.md 所承诺的「八套测试机械地
+# 强制贡献契约」真正落成合并门禁。Go 构建、静态分析与测试由 ci.yml 负责。
+# 除八套测试外，还有两道非规则门禁在同一个合并门禁里跑：台架注册表同步检查，以及
+# 主机分类工具（detections/triage/artex_host_triage.py）的自检。两者都与八套规则测试
+# 无关，由 run-all.sh 一并运行。
 #
-# 여덟 테스트는 Docker 만 있으면 돈다(ubuntu-latest 러너에 Docker 가 들어 있다). 러너가
-# sigma-cli·scapy·suricata·python 이미지를 내려받아 컨테이너에서 격리 실행하므로 러너
-# 자체에는 아무것도 설치하지 않고, 규칙 트리와 지표가 가리키는 소스 파일을 읽기 전용으로만
-# 마운트해 저장소에 쓰지 않는다. detections/ 아래가 바뀔 때 외에, 지표 테스트가 고정해 둔
-# 소스 파일이 바뀔 때도 돌린다. enrich·selfupdate·guard·db 의 User-Agent·마커·파괴명령
-# 토큰, cmd/artex/main.go 의 기본 리슨·프록시 포트, traffic/traffic.go 의 MITM CA 인증서
-# 파일명, db/schema.sql 의 탐색 그래프 스키마 지문이 여기에 해당한다. 소스 변경이 지표를
-# 바꿔 규칙·지표 목록이 조용히 낡는 경우를 머지 게이트에서 잡는다. 공개 Docker 이미지를 인증
-# 없이 내려받으므로 드물게 Docker Hub 내려받기 속도 제한에 걸릴 수 있고, 그때는 작업을
-# 다시 돌리면 해소된다.
+# 八套测试只要有 Docker 就能跑（ubuntu-latest runner 自带 Docker）。runner 会拉取
+# sigma-cli、scapy、suricata、python 镜像并在容器里隔离执行，因此 runner 本身不装
+# 任何东西，规则树与指标指向的源文件只以只读方式挂载，不写入仓库。除 detections/ 下
+# 有改动时之外，指标测试固定住的源文件变化时也会跑。enrich、selfupdate、guard、db 的
+# User-Agent、标记与破坏性命令 token，cmd/artex/main.go 的默认监听与代理端口，
+# traffic/traffic.go 的 MITM CA 证书文件名，db/schema.sql 的探索图 schema 指纹都属于
+# 这一类。源码改动带着指标一起变、规则与指标清单悄悄过时的情况，在这里被合并门禁拦下。
+# 因匿名拉取公开 Docker 镜像，偶尔会撞上 Docker Hub 拉取限速，此时重跑任务即可恢复。
 on:
   push:
     paths:
@@ -48,8 +45,7 @@ on:
 permissions:
   contents: read
 
-# 같은 브랜치에 새 푸시가 오면 앞선 실행을 취소해, 자주 푸시하는 동안 불필요한 실행이
-# 쌓이지 않게 한다.
+# 同一分支有新的推送时取消先前的运行，避免频繁推送期间堆积无谓的执行。
 concurrency:
   group: detections-${{ github.ref }}
   cancel-in-progress: true
@@ -60,23 +56,23 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: 테스트 하네스 레지스트리 동기 검사 (run-all.sh ↔ CI ↔ 디렉터리)
+      - name: 测试台架注册表同步检查（run-all.sh ↔ CI ↔ 目录）
         run: detections/tests/check-harness-sync.sh
-      - name: 호스트 트리아지 도구 자가 테스트 (artex_host_triage.py --self-test · 규칙 아닌 게이트)
+      - name: 主机分类工具自检（artex_host_triage.py --self-test · 非规则门禁）
         run: detections/tests/triage-selftest.sh
-      - name: Sigma 규칙 재현 테스트 (sigma check + 백엔드 변환 + 지표 보존)
+      - name: Sigma 规则可复现测试（sigma check + 后端转换 + 指标保全）
         run: detections/tests/sigma/run.sh
-      - name: Sigma 실제 이벤트 매칭 테스트 (원자·상관 규칙이 악성 샘플/타임라인에 발화·정상에 침묵)
+      - name: Sigma 真实事件匹配测试（原子规则与关联规则：对恶意样本/时间线触发，对正常样本静默）
         run: detections/tests/sigma_match/run.sh
-      - name: Sigma SigmaHQ 관례 린트 (전체 검증기 세트 + 문서화된 기준)
+      - name: Sigma SigmaHQ 惯例校验（全量校验器 + 已记录基准）
         run: detections/tests/sigma_lint/run.sh
-      - name: Sigma 백엔드 이식성 테스트 (상관 규칙이 여러 백엔드에서 변환되는지 확인)
+      - name: Sigma 后端可移植性测试（关联规则能否在多个后端转换）
         run: detections/tests/sigma_backends/run.sh
-      - name: Suricata 규칙 재현 테스트 (pcap 합성 → suricata -r → 경보 수 단언)
+      - name: Suricata 规则可复现测试（合成 pcap → suricata -r → 断言告警数）
         run: detections/tests/suricata/run.sh
-      - name: ATT&CK 레이어 ↔ 규칙 정합 테스트
+      - name: ATT&CK 图层 ↔ 规则一致性测试
         run: detections/tests/attack/run.sh
-      - name: 탐지 지표 ↔ 상류 소스 일치 테스트 (상류 재동기화 드리프트 가드)
+      - name: 检测指标 ↔ 上游源码一致性测试（上游重新同步的漂移守卫）
         run: detections/tests/indicators/run.sh
-      - name: 지표 MISP 내보내기 ↔ CSV 동기화 테스트 (pymisp 로 MISP 형식 유효성 검증)
+      - name: 指标 MISP 导出 ↔ CSV 同步测试（用 pymisp 校验 MISP 格式合法性）
         run: detections/tests/misp/run.sh

@@ -1,13 +1,13 @@
 # Contributing
 
-[한국어](CONTRIBUTING.md) · English
+[中文](CONTRIBUTING.md) · English
 
-Thank you for your interest in the Korean edition of ARTEX (`artex-ko`). This document
+Thank you for your interest in the Chinese edition of ARTEX (`artex-cn`). This document
 gathers the scope, policies, and procedures you should know before you start contributing.
 Before you send a contribution, please read [Authorized use and legal responsibility](#authorized-use-and-legal-responsibility)
 and [Localization policy](#localization-policy) first.
 
-- To report a bug or suggest a feature → use the [issue templates](https://github.com/jiwoochris/artex-ko/issues/new/choose).
+- To report a bug or suggest a feature → use the [issue templates](https://github.com/dami9527/artex-cn/issues/new/choose).
 - If you find a translation or localization error → use the "translation/localization error" issue template.
 - If you find a security vulnerability → **do not open a public issue**; follow the procedure in [SECURITY.en.md](SECURITY.en.md).
 - Everyone who takes part must follow the [Code of Conduct (CODE_OF_CONDUCT.en.md)](CODE_OF_CONDUCT.en.md).
@@ -24,11 +24,11 @@ testing **autonomously**. Contributors are bound by the same scope limits as use
   intentionally vulnerable target you own, such as OWASP Juice Shop or DVWA launched with Docker).
 - We do not accept code that scans, probes, or exploits real, production, or remote systems
   outside the authorized scope, nor changes that encourage such use.
-- In the Republic of Korea, intruding into another party's information and communications
-  network without authorization, or causing a disruption to it, violates the Act on Promotion
-  of Information and Communications Network Utilization and Information Protection; and any
-  personal data collected or exposed falls under the Personal Information Protection Act. The
-  full notice is in the [README](README.en.md#️-read-first--authorized-use-and-legal-notice).
+- In mainland China, intruding into another party's information network without authorization, or
+  disrupting its normal operation, violates the Cybersecurity Law of the People's Republic of
+  China; personal data collected or exposed falls under the Personal Information Protection Law,
+  and important data additionally falls under the Data Security Law. The full notice is in the
+  [README](README.en.md#️-read-first--authorized-use-and-legal-notice).
 
 Legal responsibility for how the code or documentation you contribute is used rests with the
 user who runs it. This repository is provided "AS IS."
@@ -39,34 +39,40 @@ user who runs it. This repository is provided "AS IS."
 
 The reason this repository exists is to **preserve the original
 [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX)'s judgment performance exactly while
-changing only the user-facing output to Korean**. Translation contributions that depart from
-this policy can degrade performance, so we do not accept them.
+keeping the user-facing output in Simplified Chinese as this edition's default**. Contributions
+that depart from this policy can degrade performance, so we do not accept them.
 
 - **Do not translate the agent's internal reasoning prompts (the behavior-instruction body).**
   The behavior benchmarked in the original language (Chinese) must be preserved. This body
   lives in `agent/promptcatalog.go` and the DB seed (`agent_prompts`). Translating it causes
   drift in the agent's judgment.
-- **Only user-facing output is forced into Korean.** This covers detection findings
+- **Only user-facing output is pinned to Simplified Chinese.** This covers detection findings
   (`report_finding`), fact summaries (`record_fact`), the final report, and chat responses.
   The enforcement is a code-fixed tail called `langDirective()` in `agent/prompt.go`, appended
   to the end of each role's system prompt. To change the output language, modify this function.
 - **Commands, payloads, code, URLs, and log text are not translated.** They are the originals
   needed for analysis, so they are left as is.
-- **The original Chinese is preserved.** Documents keep the original in `README.zh.md` and UI
-  strings keep it in `web/messages/zh.json`, so that changes in the upstream repository are
-  easy to compare against. Korean translations are filled into `web/messages/ko.json`.
-- When you translate a new UI string, do not hard-code it; add it as a key in the message files.
+- **The upstream Chinese original is preserved.** Documents keep it in `README.zh.md`, so that
+  changes in the upstream repository stay easy to compare against. The UI ships a single catalog,
+  `web/messages/zh.json`.
+- When you add or change a UI string, do not hard-code it; add it as a key in the message file.
+- **No Korean may remain anywhere.** Everything in this repository — interface, comments,
+  user-facing backend strings, prompts, documents, scripts and test assertions — is Simplified
+  Chinese. `scripts/check-no-korean.py` turns that into an executable check: it scans the text
+  files under the working tree (skipping `.git`, dependency directories such as `node_modules`,
+  build output, and binaries) and fails on any Hangul. Run it before you send a change
+  (`python3 -I scripts/check-no-korean.py`).
 - **The output-language enforcement is a prompt nudge, not a hard cap.** `langDirective()`
-  **instructs** the model to output Korean; it does not force-lock the language. Korean fidelity
-  therefore varies with the model's capability, the role, and the context. Use a capable
+  **instructs** the model to output Simplified Chinese; it does not force-lock the language. Chinese
+  fidelity therefore varies with the model's capability, the role, and the context. Use a capable
   (frontier-class) model when you verify localization changes. Cheap or small models can revert
-  reports and summaries to the original language (Chinese), so do not judge whether a translation
-  is applied correctly from a cheap model's output alone. The `max_tokens` pitfall when using
-  OpenAI-family models is covered in the
+  reports and summaries to the instruction body's language or to English, so do not judge whether
+  the localization is applied correctly from a cheap model's output alone. The `max_tokens` pitfall
+  when using OpenAI-family models is covered in the
   [README's "Model selection and output language" section](README.en.md#model-selection-and-output-language).
 - **The procedure for keeping up with upstream changes is in the maintainer document.** When
   the original ARTEX is updated, the runbook for distinguishing preserved assets from
-  translation targets, reflecting them, and checking translation symmetry and drift is in
+  localization targets, reflecting them, and checking localization integrity and drift is in
   [MAINTAINING.en.md](MAINTAINING.en.md).
 
 ---
@@ -103,7 +109,7 @@ build caches in named volumes makes re-runs faster.
 
 ```bash
 docker run --rm -v "$PWD":/src -w /src \
-  -v artexko-gomod:/go/pkg/mod -v artexko-gocache:/root/.cache/go-build \
+  -v artexcn-gomod:/go/pkg/mod -v artexcn-gocache:/root/.cache/go-build \
   golang:1.26 sh -c 'go build ./... && go vet ./agent/ && go test ./agent/'
 ```
 
@@ -123,21 +129,21 @@ from above.
 
 ```bash
 # 1) Bring up an isolated network and an empty postgres (same image and account as CI).
-docker network create artexko-db 2>/dev/null || true
-docker run -d --name artexko-pg --network artexko-db \
+docker network create artexcn-db 2>/dev/null || true
+docker run -d --name artexcn-pg --network artexcn-db \
   -e POSTGRES_USER=artex -e POSTGRES_PASSWORD=artex -e POSTGRES_DB=artex \
   postgres:16-alpine
-until docker exec artexko-pg pg_isready -U artex -d artex >/dev/null 2>&1; do sleep 1; done
+until docker exec artexcn-pg pg_isready -U artex -d artex >/dev/null 2>&1; do sleep 1; done
 
 # 2) Pass the DSN to run the DB integration packages (the DSN host is the container name).
 #    To run only the package you fixed, replace ./agent/ with config, db, evidence, llmrec, or server.
-docker run --rm --network artexko-db -v "$PWD":/src -w /src \
-  -v artexko-gomod:/go/pkg/mod -v artexko-gocache:/root/.cache/go-build \
-  -e ARTEX_PG_DSN='postgres://artex:artex@artexko-pg:5432/artex?sslmode=disable' \
+docker run --rm --network artexcn-db -v "$PWD":/src -w /src \
+  -v artexcn-gomod:/go/pkg/mod -v artexcn-gocache:/root/.cache/go-build \
+  -e ARTEX_PG_DSN='postgres://artex:artex@artexcn-pg:5432/artex?sslmode=disable' \
   golang:1.26 sh -c 'go test ./agent/ -count=1'
 
 # 3) Clean up.
-docker rm -f artexko-pg && docker network rm artexko-db
+docker rm -f artexcn-pg && docker network rm artexcn-db
 ```
 
 CI's `go-db` job **isolates each of these six packages with its own postgres** and forces them
@@ -152,7 +158,7 @@ npm ci
 npm run dev          # dev server
 npm run build        # production build
 npm run build:static # static-export build (merge gate; includes TypeScript type checking)
-npm run check        # Biome lint/format check (informational; not a merge gate yet, due to pre-existing debt)
+npm run check        # Biome lint/format check (a merge gate: 0 errors required)
 npm run check:fix    # auto-fix
 ```
 
@@ -176,11 +182,12 @@ docker compose up -d     # start artex + postgres → http://localhost:8787
    the change, as in `feat/...`, `fix/...`, `docs/...`, `i18n/...`.
 3. Write the change and **run the relevant verification yourself.** For a Go change, make the
    `build`/`vet`/`test` above pass. For a web change, make `npm run build:static` pass (it also
-   performs the merge gate and the TypeScript type checking). `npm run check` (Biome) still has
-   pre-existing lint debt inherited from upstream and is not a merge gate yet — `web.yml` runs it
-   only as an informational step — so you do not need to make all of it pass. Instead, just
-   confirm that **your change does not add new errors** (when you commit, `lint-staged`
-   automatically applies `biome check --write` to the files you staged). If you changed
+   performs the merge gate and the TypeScript type checking). `npm run check` (Biome) is also a
+   merge gate: the step in `web.yml` is labelled `biome check` as a merge gate requiring lint,
+   format and a11y to stay at 0 errors, and any error fails the whole job, so all of it must pass
+   with 0 errors (on commit, `lint-staged` automatically applies
+   `biome check --write` to the files you staged, which you can use to fix formatting before
+   re-checking). If you changed
    documentation (`.md`), run `python3 -I scripts/check-doc-links.py` to confirm that in-repo
    link/image references and document anchor (`#heading`) links are not broken. Anchors are built
    from headings into slugs with the same rule as GitHub and matched, so if you change a heading's
@@ -199,7 +206,7 @@ docker compose up -d     # start artex + postgres → http://localhost:8787
 ### Commit messages
 
 Follow the convention of the existing commit history. The format is `type(scope): description`,
-and the description is written in Korean.
+and the description is written in Simplified Chinese.
 
 - `type`: `feat` · `fix` · `docs` · `chore` · `refactor` · `test` · `i18n`, and so on
 - `scope`: the changed area (`agent` · `web` · `server`, and so on); optional
@@ -207,9 +214,9 @@ and the description is written in Korean.
 Examples.
 
 ```
-feat(agent): 사용자 노출 출력을 한국어로 강제 (langDirective)
-docs: 한국어 README 작성, 원본은 README.zh.md 로 보존
-i18n(web): 대시보드 네비게이션 라벨 한국어 번역
+feat(agent): 强制用户可见输出为简体中文 (langDirective)
+docs: 编写中文 README，上游原文保留为 README.zh.md
+i18n(web): 翻译仪表盘导航标签
 ```
 
 ---
@@ -288,7 +295,9 @@ wiring this runner directly as a pre-commit hook is in the repository root's
 pre-commit install`, the runner runs only on commits that change detection rules or the upstream source
 those rules pin (the same scope as CI), catching rule/test mismatches before push. The same config file
 also includes the `docs` hook that checks in-repo link/image/anchor references (the `check-doc-links.py`
-from step 3 of the contribution flow above).
+from step 3 of the contribution flow above), and the `ko-check` hook that scans the whole repository for
+leftover Korean (the `check-no-korean.py` from the "No Korean may remain anywhere" rule above, which runs
+on every commit).
 
 These eight tests are run by the repository CI
 ([`.github/workflows/detections.yml`](.github/workflows/detections.yml)) on every push/PR that changes

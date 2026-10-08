@@ -9,10 +9,10 @@ import (
 	"testing"
 )
 
-// TestTaskCategoryBatchRoute pins the contract of the batch move endpoint: it is
-// registered ahead of the /api/tasks/{id}/... patterns, it validates the request
-// before touching the database, and it reports unknown ids per task instead of
-// failing the whole batch.
+// TestTaskCategoryBatchRoute 固定批量移动端点的契约：
+// 它注册在 /api/tasks/{id}/... 模式之前，在触碰数据库之前
+// 就校验请求，并且按任务报告未知 id，
+// 而不是让整批失败。
 func TestTaskCategoryBatchRoute(t *testing.T) {
 	m, err := NewManager(t.TempDir(), "")
 	if err != nil {
@@ -37,20 +37,20 @@ func TestTaskCategoryBatchRoute(t *testing.T) {
 		return rec
 	}
 
-	// category_id is required, and omitting it must not be read as "uncategorize".
+	// category_id 是必填的，省略它不得被理解成「取消分类」。
 	if rec := post(`{"task_ids":["1"]}`); rec.Code != http.StatusBadRequest ||
 		!strings.Contains(rec.Body.String(), "category_id is required") {
 		t.Fatalf("missing category_id: status=%d body=%s", rec.Code, rec.Body.String())
 	}
 
-	// An empty selection is rejected before any database work.
+	// 空选择在任何数据库操作之前就被拒绝。
 	if rec := post(`{"task_ids":[],"category_id":null}`); rec.Code != http.StatusBadRequest ||
-		!strings.Contains(rec.Body.String(), "task_ids 개수는") {
+		!strings.Contains(rec.Body.String(), "task_ids 数量必须为") {
 		t.Fatalf("empty task_ids: status=%d body=%s", rec.Code, rec.Body.String())
 	}
 
-	// Unknown and malformed ids come back as per-task failures on a 200, so the
-	// caller can tell exactly which selections went stale.
+	// 未知与格式非法的 id 以 200 上的逐任务失败返回，
+	// 调用方可以确切知道哪些选择已失效。
 	rec := post(`{"task_ids":["999999999","abc","999999999"],"category_id":null}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("batch status=%d body=%s", rec.Code, rec.Body.String())
@@ -68,7 +68,7 @@ func TestTaskCategoryBatchRoute(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
 		t.Fatalf("decode: %v body=%s", err, rec.Body.String())
 	}
-	// The duplicate id is collapsed, so two entries remain.
+	// 重复 id 被合并，因此只剩两个条目。
 	if len(response.Items) != 2 {
 		t.Fatalf("items=%+v, want 2 after de-duplication", response.Items)
 	}

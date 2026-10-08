@@ -2,16 +2,16 @@ package server
 
 import "testing"
 
-// finding_traffic.go 의 사용자 노출 HTTP 에러 응답 문구를 한국어로 유지하는 회귀 방어
-// 테스트다. 한국어 판정은 F3a 가 만든 assertKoreanError(한글 포함·중국어 한자 0)를
-// 재사용한다. 네 문구를 반환하는 경로(findingTrafficAccess·bindFindingTraffic·
-// editFindingTraffic)는 전부 s.m.pg.GetFinding(DB) 게이트 뒤라 DB 없는 이 호스트에서
-// 끝까지 돌 수 없으므로 상수 자체를 핀 고정한다(goals_api·notify_api 의 DB 게이트
-// 경로와 같은 방식). 누군가 이 리터럴을 중국어로 되돌리면 이 테스트가 실패한다.
+// 回归防御测试：保证 finding_traffic.go 的用户可见 HTTP 错误响应文案为简体中文。
+// 中文判定复用 F3a 的 assertChineseError(含汉字·无谚文)，
+// 返回那四条文案的路径(findingTrafficAccess·bindFindingTraffic·
+// editFindingTraffic)全都在 s.m.pg.GetFinding(DB) 关卡之后，在无 DB 的本机
+// 跑不完，因此直接固定常量本身(与 goals_api·notify_api 的 DB 关卡
+// 路径同样处理)。一旦有人把这个字面量改回非中文文案，本测试即失败。
 //
-// readEvidencePreview 의 errors.New(offset/length 검증)·이진 본문 플레이스홀더와
-// roTool("get_finding_traffic") 도구 설명은 에이전트 도구 결과로 되먹여지는 두뇌
-// 입력이라 의도적으로 원문(중국어)을 보존하며, 이 테스트의 단언 대상이 아니다.
+// readEvidencePreview 的 errors.New(offset/length 校验)·二进制正文占位符，
+// 以及 roTool("get_finding_traffic") 工具说明会作为智能体工具结果回喂到大脑，
+// 属于大脑输入，刻意保留原文(中文)，不是本测试的断言对象。
 func TestFindingTrafficErrorsLocalized(t *testing.T) {
 	for _, c := range []struct {
 		label, msg string
@@ -21,6 +21,6 @@ func TestFindingTrafficErrorsLocalized(t *testing.T) {
 		{"version_required", errFindingTrafficVersionRequired},
 		{"binding_ids_required", errFindingTrafficBindingIDsRequired},
 	} {
-		assertKoreanError(t, c.label, c.msg)
+		assertChineseError(t, c.label, c.msg)
 	}
 }

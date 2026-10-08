@@ -2,17 +2,17 @@ package server
 
 import "testing"
 
-// finding_retests.go 의 사용자 노출 HTTP 에러 응답 문구를 한국어로 유지하는 회귀 방어
-// 테스트다. 한국어 판정은 F3a 가 만든 assertKoreanError(한글 포함·중국어 한자 0)를
-// 재사용한다. 네 문구를 반환하는 startFindingRetest 핸들러는 맨 앞에서 s.pg(w)(DB)
-// 게이트를 지나므로 DB 없는 이 호스트에서 끝까지 돌 수 없어, 상수 자체를 핀 고정한다
-// (finding_traffic·goals_api·notify_api 의 DB 게이트 경로와 같은 방식). 누군가 이
-// 리터럴을 중국어로 되돌리면 이 테스트가 실패한다.
+// 回归防御测试：保证 finding_retests.go 的用户可见 HTTP 错误响应文案为简体中文。
+// 中文判定复用 F3a 的 assertChineseError(含汉字·无谚文)，
+// 返回那四条文案的 startFindingRetest 处理器一上来就经 s.pg(w)(DB)
+// 关卡，在无 DB 的本机跑不完，因此直接固定常量本身
+// (与 finding_traffic·goals_api·notify_api 的 DB 关卡路径同样处理)。一旦有人把
+// 这个字面量改回非中文文案，本测试即失败。
 //
-// 도구 설명(get_finding_retest_context·record_finding_retest_result)·파라미터 설명·
-// actool.Errorf(회차 미연결 안내)와 seedFindingRetester 의 DB 시드 에이전트 이름·
-// 프로필·note 는 에이전트가 읽는 두뇌 입력이거나 시드라 의도적으로 원문(중국어)을
-// 보존하며, 이 테스트의 단언 대상이 아니다(finding_retests.go 상수 블록 주석 참조).
+// 工具说明(get_finding_retest_context·record_finding_retest_result)·参数说明·
+// actool.Errorf(轮次未关联提示)以及 seedFindingRetester 的 DB 种子智能体名称·
+// 配置·note 属于智能体读取的大脑输入或种子，刻意保留原文(中文)，
+// 不是本测试的断言对象(参见 finding_retests.go 常量块注释)。
 func TestFindingRetestErrorsLocalized(t *testing.T) {
 	for _, c := range []struct {
 		label, msg string
@@ -22,6 +22,6 @@ func TestFindingRetestErrorsLocalized(t *testing.T) {
 		{"tool_required", errFindingRetestToolRequired},
 		{"service_stopping", errFindingRetestServiceStopping},
 	} {
-		assertKoreanError(t, c.label, c.msg)
+		assertChineseError(t, c.label, c.msg)
 	}
 }

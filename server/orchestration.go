@@ -500,7 +500,7 @@ func (s *Server) seedOrchestrationTools() {
 	s.reseedMainAgentPrompt()         // mainagent 提示词加入「目标达成后 add_intent 反问是否建目标」(一次性)
 	s.reseedPlannerPrompt()           // planner 提示词:重写「0 意图」正当理由 + 加量化验收核对(一次性)
 	s.reseedWorkerPrompt()            // worker 提示词:加否定结论证据门槛(一次性)
-	s.seedReporterAgent()             // 预置「보고서 작성」agent + 工具绑定 + finding 触发器(一次性)
+	s.seedReporterAgent()             // 预置「报告撰写」agent + 工具绑定 + finding 触发器(一次性)
 	s.upgradeReporterTriggerMessage() // 老库补迁移:让 reporter 回传 evidence_version(一次性)
 	s.seedFindingTrafficTools()       // 增加可选证据参数及只读证据工具，保留用户配置
 	s.seedFindingWorkflowTools()
@@ -544,7 +544,7 @@ func (s *Server) refreshBuiltinToolSchemas() {
 		}
 	}
 	_ = s.m.pg.SetSetting(flag, "true")
-	log.Printf("[tools] orchestration/platform 도구 스키마를 코드 기본값으로 새로고침(1회성)")
+	log.Printf("[tools] 已刷新 orchestration/platform 工具 schema 到代码默认值(一次性)")
 }
 
 // unbindGoalMetDefault removes goal_met's default "planner" binding ONCE (guarded by
@@ -729,50 +729,41 @@ func (s *Server) upgradeReporterTriggerMessage() {
 	}
 }
 
-// reporterAgentName·reporterAgentDescription 은 시드되는 reporter 에이전트의 표시 전용
-// 라벨이다(한국어화). 에이전트의 두뇌(段[A] agent.ReporterDefaultPrompt)와 트리거 주입
-// 메시지(reporterToolCallMessage)는 모델 입력이라 중국어 원문을 보존하지만, 이 이름·설명은
-// `agentDTO` 로 system/agents UI 에만 렌더되고(server_mgmt.go) 어떤 프롬프트·에이전트 선택에도
-// 들어가지 않는 순수 UI 라벨이라 한국어화한다(BRIEF 사용자 노출 산출물 한국어화 범위). 트리거는
-// report_finding 도구 호출 기반(OnToolCall·결정적)이라 reporter 는 key "reporter" 로 참조될 뿐
-// 표시 이름으로 선택되지 않는다. 회귀 방어: reporter_seed_localized_test.go. [[F35]]
-const reporterAgentName = "보고서 작성"
-const reporterAgentDescription = "취약점 상세 보고서 작성: 취약점을 발견하면 자동으로 트리거되어, 증거와 실행 과정을 조회한 뒤 Markdown 보고서를 작성해 해당 취약점에 기록합니다."
+// reporterAgentName·reporterAgentDescription 是种子 reporter 智能体的展示专用
+// 标签。智能体的大脑(段[A] agent.ReporterDefaultPrompt)与触发器注入
+// 消息(reporterToolCallMessage)是模型输入，保留中文原文，而这两个字符串只经
+// `agentDTO` 渲染到 system/agents UI(server_mgmt.go)，不进入任何提示词·智能体选择，
+// 属于纯 UI 标签。触发器基于 report_finding 工具调用(OnToolCall·确定性)，
+// reporter 只以 key "reporter" 被引用，不按显示名称选择。
+// 回归防护：reporter_seed_localized_test.go。[[F35]]
+const reporterAgentName = "报告撰写"
+const reporterAgentDescription = "撰写漏洞详细报告：发现漏洞时自动触发，查阅证据与执行过程后生成 Markdown 报告并记录到该漏洞。"
 
-// reporter(와 retester)의 중국어 표시 라벨. 중국어 UI 로 빌드한 배포에서는 위 한국어
-// 라벨이 화면에 그대로 나가 어색하므로, 런타임 locale(config.Locale)에 따라 고른다.
-// 이것도 순수 UI 라벨이라 번역해도 두뇌 입력에는 닿지 않는다(위 주석과 같은 근거).
-const reporterAgentNameZh = "报告撰写"
-const reporterAgentDescriptionZh = "撰写漏洞详细报告：发现漏洞时自动触发，查阅证据与执行过程后生成 Markdown 报告并记录到该漏洞。"
-
-// reporterAgentLabels 는 런타임 locale 에 맞는 reporter 표시 라벨을 돌려준다.
+// reporterAgentLabels 返回 reporter 的展示标签。界面语言固定为中文，无 locale 分支。
 func reporterAgentLabels() (name, desc string) {
-	if config.Locale() == "zh" {
-		return reporterAgentNameZh, reporterAgentDescriptionZh
-	}
 	return reporterAgentName, reporterAgentDescription
 }
 
-// reporterAgentNameZhLegacy 는 677bc23(F35, reporter 한국어화) **이전**의 중국어 기본
-// 설명이다. 이름(报告撰写)은 지금도 같지만 설명 문구가 그때 바뀌었으므로, 그 시절에
-// 시드된 DB 를 "사용자가 손대지 않은 기본값"으로 알아보려면 이 값이 필요하다
-// (below seedAgentLocalizers 의 known 집합).
-const reporterAgentDescriptionZhLegacy = "漏洞详细报告撰写：发现漏洞时自动触发，查取证据与执行过程后写 Markdown 报告并回写。"
+// reporterAgentDescriptionLegacy 是 677bc23(F35) **之前**的中文默认
+// 描述。名称(报告撰写)至今未变，但描述文案在当时改过，因此要把
+// 那个时期种子化的 DB 认作「用户未改动过的默认值」，就需要这个值
+// (见下方 seedAgentLocalizers 的 known 集合)。
+const reporterAgentDescriptionLegacy = "漏洞详细报告撰写：发现漏洞时自动触发，查取证据与执行过程后写 Markdown 报告并回写。"
 
-// seedAgentLabel 은 한 에이전트의 기본 표시 라벨 한 벌(name, desc)이다.
+// seedAgentLabel 是一个智能体的一整套默认展示标签(name, desc)。
 type seedAgentLabel struct{ name, desc string }
 
-// seedAgentLocalizer 는 한 에이전트의 "역대 기본 라벨"과 현재 locale 의 목표 라벨을 담는다.
+// seedAgentLocalizer 保存一个智能体的「历代默认标签」与当前目标标签。
 //
-// known 에는 그 에이전트가 지금까지 **기본값으로** 써 온 모든 (이름, 설명) 조합이 들어간다
-// (중국어 원문·한국어판, 그리고 중간에 문구가 바뀐 이력까지). 현재 DB 값이 이 집합에
-// 있으면 "사용자가 손대지 않았다"는 뜻이므로 목표값으로 맞춰도 안전하고, 집합에 없으면
-// 사용자가 UI 에서 고친 것이므로 건드리지 않는다.
+// known 中是该智能体至今**作为默认值**使用过的所有 (名称, 描述) 组合
+// (中文原文，以及中途文案变动的历史)。当前 DB 值若在这个集合中，
+// 说明「用户未改动过」，可以安全对齐到目标值；不在集合中则说明
+// 是用户在 UI 中改过的，不做改动。
 //
-// 이렇게 집합으로 두는 이유: 초기 구현은 항목을 하나씩 늘어놓고 "이 항목의 기본값과 같으면
-// 갱신"으로 판정했는데, (a) 목표값과 비교하는 실수로 뒤 항목이 통째로 건너뛰어졌고,
-// (b) 이름과 설명의 이력이 서로 다르게 바뀐 조합(예: 이름만 번역되고 설명은 아직 원문)을
-// 표현할 수 없었다. 집합이면 두 문제가 모두 사라진다.
+// 之所以做成集合：早期实现逐项列举并判断「等于该项的默认值就更新」，
+// 结果 (a) 误与目标值比较，导致后续项被整体跳过，
+// (b) 无法表示名称与描述的变动历史互不相同的组合(例如名称已翻译而描述仍是原文)。
+// 改成集合后这两个问题都消失。
 type seedAgentLocalizer struct {
 	key     string
 	known   []seedAgentLabel
@@ -784,16 +775,14 @@ func seedAgentLocalizers() []seedAgentLocalizer {
 		{
 			key: "reporter",
 			known: []seedAgentLabel{
-				{reporterAgentNameZh, reporterAgentDescriptionZh},
-				{reporterAgentNameZh, reporterAgentDescriptionZhLegacy},
 				{reporterAgentName, reporterAgentDescription},
+				{reporterAgentName, reporterAgentDescriptionLegacy},
 			},
 			current: reporterAgentLabels,
 		},
 		{
 			key: "retester",
 			known: []seedAgentLabel{
-				{retesterAgentNameZh, retesterAgentDescriptionZh},
 				{retesterAgentName, retesterAgentDescription},
 			},
 			current: retesterAgentLabels,
@@ -801,25 +790,25 @@ func seedAgentLocalizers() []seedAgentLocalizer {
 	}
 }
 
-// localizeSeedAgentNames 는 시드된 에이전트의 **표시 이름·설명**을 런타임 locale 에 맞춘다.
+// localizeSeedAgentNames 把已种子智能体的**显示名称·描述**对齐到当前语言。
 //
-// 왜 필요한가: reporter·retester 라벨은 시드 시점에 문자열로 DB 에 들어가고, 시드는 각각
-// `reporter_agent_seed_v1`·`finding_retester_seed_v1` 플래그로 **한 번만** 돈다. 그래서
-// ① 이미 설치된 인스턴스는 언어를 바꿔도 이름이 그대로 남고, ② 반대로 이름을 매 기동마다
-// 덮어쓰면 사용자가 UI 에서 고친 이름을 잃는다. 이 함수는 그 사이를 잡는다 —
-// **현재 값이 그 에이전트의 역대 기본값 중 하나일 때만**(= 사용자가 손대지 않았을 때만)
-// 새 locale 값으로 바꾸고, 사용자가 고친 이름은 건드리지 않는다.
+// 为什么需要：reporter·retester 标签在种子时以字符串写入 DB，而种子各自由
+// `reporter_agent_seed_v1`·`finding_retester_seed_v1` 标志**只跑一次**。因此
+// ① 已安装的实例即使换语言，名称也保持不变；② 反之若每次启动都覆盖名称，
+// 用户在 UI 中改过的名称就会丢失。本函数处理这两者之间 —
+// **仅当当前值是该智能体历代默认值之一时**(= 用户未改动过时)
+// 才换成新的目标值，用户改过的名称不动。
 //
-// 설정 키 `seed_agent_names_locale` 에 마지막으로 적용한 locale 을 남겨, 언어가 바뀌지
-// 않았으면 아무 일도 하지 않는다(멱등). 사용자가 UI 에서 이름을 바꾼 뒤에는 그 키가 이미
-// 현재 locale 이라 다시 덮어쓰지 않는다.
+// 设置键 `seed_agent_names_locale` 记录最后一次应用的语言，语言未变
+// 则不做事(幂等)。用户在 UI 中改名之后，该键已是
+// 当前语言，故不会再次覆盖。
 func (s *Server) localizeSeedAgentNames() {
 	const flag = "seed_agent_names_locale"
 	locale := config.Locale()
-	// 플래그만 보고 건너뛰면 안 된다. 예전 구현이 **이름을 바꾸지 못하고도** 플래그를
-	// 남긴 적이 있어(목표값 비교 버그), 그때 만들어진 DB 는 플래그가 현재 locale 인데
-	// 실제 이름은 다른 언어로 남아 있다. 그래서 "플래그가 같고 + 실제 상태도 목표와
-	// 일치"일 때만 건너뛴다 — 어긋나면 다시 맞춘다.
+	// 不能只看标志就跳过。早期实现曾在**未能改名的情况下**留下标志
+	// (目标值比较 bug)，那时生成的 DB 标志是当前语言，
+	// 实际名称却仍是另一种语言。因此只在「标志相同 + 实际状态也与目标
+	// 一致」时才跳过 — 不一致就重新对齐。
 	if v, _, _ := s.m.pg.GetSetting(flag); v == locale && s.seedAgentNamesMatch(locale) {
 		return
 	}
@@ -829,7 +818,7 @@ func (s *Server) localizeSeedAgentNames() {
 		if err != nil || a == nil {
 			continue
 		}
-		// 사용자가 고친 이름·설명은 보존한다: 현재 값이 역대 기본값 집합에 없으면 손대지 않는다.
+		// 用户在 UI 中改过的名称·描述要保留：当前值不在历代默认值集合中就不动。
 		isDefault := false
 		for _, k := range l.known {
 			if a.Name == k.name && a.Description == k.desc {
@@ -842,28 +831,28 @@ func (s *Server) localizeSeedAgentNames() {
 		}
 		name, desc := l.current()
 		if a.Name == name && a.Description == desc {
-			continue // 이미 목표 언어다(예: 기본값이 곧 현재 locale)
+			continue // 已是目标值
 		}
 		if err := s.m.pg.UpdateAgentMeta(l.key, name, desc); err != nil {
-			log.Printf("[i18n] %s 표시 이름 현지화 실패: %v", l.key, err)
+			log.Printf("[i18n] %s 显示名称本地化失败: %v", l.key, err)
 			continue
 		}
 		updated++
 	}
-	// 실패해도 플래그를 남기지 않는다 — 다음 기동에서 다시 시도하는 편이, 조용히 한국어
-	// 이름이 남는 것보다 낫다.
+	// 失败也不留下标志 — 下次启动重试，好过静默留下旧语言的
+	// 名称。
 	if err := s.m.pg.SetSetting(flag, locale); err != nil {
-		log.Printf("[i18n] seed 이름 locale 플래그 저장 실패: %v", err)
+		log.Printf("[i18n] 保存 seed 名称 locale 标志失败: %v", err)
 		return
 	}
 	if updated > 0 {
-		log.Printf("[i18n] 시드 에이전트 표시 이름 %d건을 %s 로 맞췄습니다", updated, locale)
+		log.Printf("[i18n] 已将 %d 个种子智能体显示名称对齐为 %s", updated, locale)
 	}
 }
 
-// seedAgentNamesMatch 는 "손대지 않은 기본값"인 에이전트들이 모두 현재 locale 의 목표
-// 라벨과 일치하는지 본다. 사용자가 고친 이름은 검사 대상이 아니다(그건 원래 보존 대상).
-// 존재하지 않는 에이전트(사용자가 삭제)도 통과로 본다.
+// seedAgentNamesMatch 检查「未改动过的默认值」智能体是否都与当前
+// 目标标签一致。用户改过的名称不在检查范围内(本就是保留对象)。
+// 不存在的智能体(被用户删除)也视为通过。
 func (s *Server) seedAgentNamesMatch(locale string) bool {
 	for _, l := range seedAgentLocalizers() {
 		a, err := s.m.pg.GetAgentByKey(l.key)
@@ -878,7 +867,7 @@ func (s *Server) seedAgentNamesMatch(locale string) bool {
 			}
 		}
 		if !isDefault {
-			continue // 사용자가 고친 것 — 보존 대상이므로 불일치로 보지 않는다
+			continue // 用户改过的 — 属于保留对象，不算不一致
 		}
 		name, desc := l.current()
 		if a.Name != name || a.Description != desc {
@@ -888,7 +877,7 @@ func (s *Server) seedAgentNamesMatch(locale string) bool {
 	return true
 }
 
-// seedReporterAgent 预置一个「보고서 작성」自定义 agent(builtin=false，可在 UI 编辑/删除)：
+// seedReporterAgent 预置一个「报告撰写」自定义 agent(builtin=false，可在 UI 编辑/删除)：
 // 绑定 update_finding_report + 任务查询工具，并挂一个「report_finding 被调用即触发」的
 // 触发器 —— 每登记一个漏洞就唤起它写详细报告。一次性(settings flag 守卫)：用户删掉后不再重建。
 // 依赖：orchestration 工具已在本函数上方 SeedTool 入库，故绑定得上。
@@ -936,7 +925,7 @@ func (s *Server) seedReporterAgent() {
 	}); err != nil {
 		log.Printf("[reporter] 创建触发器失败: %v", err)
 	}
-	log.Printf("[reporter] 「%s」 agent + finding 트리거 사전 구성", name)
+	log.Printf("[reporter] 已预置「%s」agent + finding 触发器", name)
 }
 
 // seedAutoReportFindingBinding adds "auto" to report_finding's binding ONCE so

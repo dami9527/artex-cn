@@ -132,8 +132,8 @@ function groupByAgent(conversations: Conversation[], agentByKey: Map<string, Age
   return [...groups.values()];
 }
 
-// LiveBadge is the small pulsing "실시간" chip reused from the task's main-agent
-// console — shown while a turn is streaming.
+// LiveBadge 是从任务主 Agent 控制台复用过来的小型脉冲「实时」标签，
+// 在一轮回复正在流式输出时显示。
 function LiveBadge() {
   const t = useTranslations("chat");
   return (
@@ -171,7 +171,7 @@ function Composer({
   running?: boolean;
   onStop?: () => void;
   stopDisabled?: boolean;
-  // 방식1 파일 업로드: onPickFiles 를 넘겨야 클립 버튼 + 첨부 chip 미리 보기를 표시한다.
+  // 方式 1 文件上传：必须传入 onPickFiles 才会显示回形针按钮 + 附件 chip 预览。
   attachments?: ChatAttachment[];
   onPickFiles?: (files: File[]) => void;
   onRemoveAttachment?: (path: string) => void;
@@ -181,7 +181,7 @@ function Composer({
   const t = useTranslations("chat");
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const atts = attachments ?? [];
-  // 전송 키는 시스템 설정(localStorage)으로 결정하며, 기본값은 Enter 전송이다.
+  // 发送键由系统设置(localStorage)决定，默认是 Enter 发送。
   const sendMode = useChatSendMode();
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (!shouldSubmitOnKey(e, sendMode)) return;
@@ -225,8 +225,8 @@ function Composer({
               multiple
               className="hidden"
               onChange={(e) => {
-                // FileList 는 input 요소에 live 바인딩되어 있어, 먼저 배열로 스냅샷한 뒤 value 를 비워야 한다.
-                // 그러지 않으면 비동기 onPickFiles(예: 초안 상태에서 먼저 대화를 생성)가 재개될 때 빈 목록을 받는다.
+                // FileList 是 live 绑定在 input 元素上的，因此必须先快照成数组再清空 value。
+                // 否则异步的 onPickFiles（例如草稿状态下先创建对话）恢复执行时会拿到空列表。
                 const picked = Array.from(e.target.files ?? []);
                 e.target.value = ""; // allow re-picking the same file
                 if (picked.length > 0) onPickFiles(picked);
@@ -469,7 +469,7 @@ function DraftChat({
         <div className="bg-primary/10 flex size-12 items-center justify-center rounded-full">
           <Bot className="text-primary size-6" />
         </div>
-        <div className="text-sm font-medium">{t("emptyStart", { agent: agent?.name ?? "에이전트" })}</div>
+        <div className="text-sm font-medium">{t("emptyStart", { agent: agent?.name ?? "Agent" })}</div>
         {agent?.description && <p className="text-muted-foreground max-w-md text-xs">{agent.description}</p>}
       </div>
 
@@ -520,7 +520,7 @@ function ChatView({
   const [input, setInput] = React.useState(initial?.input ?? "");
   const [sending, setSending] = React.useState(false);
   const [stopping, setStopping] = React.useState(false);
-  // 방식1 파일 업로드: 이미 업로드한 첨부(sessions/conv-<id>/uploads/ 에 저장)를 다음 메시지와 함께 보낸다.
+  // 方式 1 文件上传：把已上传的附件（保存在 sessions/conv-<id>/uploads/）随下一条消息一起发出。
   const [attachments, setAttachments] = React.useState<ChatAttachment[]>(initial?.attachments ?? []);
   const [uploading, setUploading] = React.useState(false);
   const cursorRef = React.useRef(0); // newest loaded id — incremental-tail anchor
@@ -716,7 +716,7 @@ function ChatView({
     let li = 0,
       lo = 0,
       lcr = 0;
-    let turns = 0; // 에이전트 반복 횟수 = 모델 호출 횟수(usage 종류 1건당 1회)
+    let turns = 0; // agent 循环轮次 = 模型调用次数（每条 usage 记 1 次）
     for (const a of messages) {
       if (a.kind === "result") {
         i += a.input_tokens ?? 0;
@@ -982,7 +982,7 @@ const ConversationItem = React.memo(function ConversationItem({
               </>
             )}
             <span className="shrink-0">
-              {new Date(conv.created_at).toLocaleDateString("ko-KR", {
+              {new Date(conv.created_at).toLocaleDateString("zh-CN", {
                 month: "numeric",
                 day: "numeric",
                 hour: "2-digit",
@@ -1107,7 +1107,7 @@ export default function ChatPage() {
   const [renameText, setRenameText] = React.useState("");
   const [selectedConversationIds, setSelectedConversationIds] = React.useState<Set<number>>(() => new Set());
   // selectionMode gates the multi-select UI: off by default (clean list, no
-  // checkboxes); the header "다중 선택" button turns it on, "완료" turns it off and
+  // checkboxes); the header "多选" button turns it on, "完成" turns it off and
   // clears the selection.
   const [selectionMode, setSelectionMode] = React.useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
@@ -1244,7 +1244,7 @@ export default function ChatPage() {
     [visibleConversations, agentByKey],
   );
   // conversation agents: custom agents + conversational built-ins (role=assistant,
-  // e.g. Auto / 침투 테스트). The orchestration built-ins (goals/planner/mainagent/worker)
+  // e.g. Auto / 渗透测试). The orchestration built-ins (goals/planner/mainagent/worker)
   // are task-specific and stay hidden from the chat page.
   const chatAgents = React.useMemo(() => agents.filter((a) => !a.builtin || a.role === "assistant"), [agents]);
   const agentFilterOptions = React.useMemo(() => {
@@ -1257,7 +1257,7 @@ export default function ChatPage() {
     if (agentFilter !== null) keys.add(agentFilter);
     return [...keys]
       .map((key) => ({ key, name: agentByKey.get(key)?.name || key, count: counts.get(key) ?? 0 }))
-      .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+      .sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
   }, [convs, chatAgents, agentByKey, agentFilter]);
   const conversationCountLabel =
     agentFilter === null

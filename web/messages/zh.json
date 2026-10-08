@@ -114,9 +114,9 @@
     "pendingApprovals": "待审批 ({count})",
     "range7": "7天",
     "range30": "30天",
-    "range90": "3月",
-    "range180": "6月",
-    "range365": "一年",
+    "range90": "3个月",
+    "range180": "6个月",
+    "range365": "1年",
     "recentRequests": "最近请求",
     "recording": "录制中",
     "requestCount": "{count} 次请求",
@@ -185,9 +185,9 @@
     "title": "找不到页面"
   },
   "search": {
-    "button": "Search",
+    "button": "搜索",
     "empty": "没有匹配的结果。",
-    "placeholder": "Search dashboards, users, and more…"
+    "placeholder": "搜索仪表盘、用户等…"
   },
   "status": {
     "audit": {
@@ -360,7 +360,7 @@
         "subdomain": "子域名",
         "ip": "IP",
         "service": "服务",
-        "app": "App",
+        "app": "应用",
         "endpoint": "端点"
       },
       "graph": {
@@ -387,7 +387,7 @@
         "attrPort": "端口",
         "attrTitle": "标题",
         "attrStatusCode": "状态码",
-        "attrApp": "App",
+        "attrApp": "应用",
         "attrAssetId": "资产ID",
         "refIntents": "关联意图",
         "refFacts": "关联事实",
@@ -1112,7 +1112,7 @@
       },
       "detail": {
         "interval": "定时：{msg}",
-        "finding": "finding：{msg}",
+        "finding": "发现：{msg}",
         "goal": "目标：{msg}",
         "timeout": "超时：{msg}",
         "taskCreate": "任务创建：{msg}",
@@ -2281,7 +2281,7 @@
     "assetType": {
       "subdomain": "子域名",
       "service": "服务",
-      "app": "App",
+      "app": "应用",
       "ip": "IP"
     },
     "resultCompanies": "新建/更新企业：{names}",
@@ -2931,9 +2931,9 @@
       "inShort": "入",
       "cacheShort": "缓",
       "outShort": "出",
-      "inLong": "input",
-      "cacheLong": "cache",
-      "outLong": "output"
+      "inLong": "输入",
+      "cacheLong": "缓存",
+      "outLong": "输出"
     },
     "item": {
       "sourceTask": "来源 #{id}",

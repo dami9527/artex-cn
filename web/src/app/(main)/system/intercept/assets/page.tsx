@@ -20,8 +20,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import type { AssetInterceptKind, AssetInterceptRule } from "@/lib/types";
 
-// ---- kind 메타 정보 ----
-// label 은 assetInterceptRules.kind.* 에서, group 헤더는 assetInterceptPage.group.* 에서 해석한다.
+// ---- kind 元信息 ----
+// label 从 assetInterceptRules.kind.* 取，group 表头从 assetInterceptPage.group.* 取。
 
 type KindGroup = "exact" | "fuzzy" | "cidr";
 
@@ -77,8 +77,8 @@ type RuleForm = {
 
 const defaultForm = (): RuleForm => ({ enabled: true, kind: "fuzzy_domain", pattern: "", note: "" });
 
-// 프런트 가벼운 검증(백엔드와 일치: exact_ip / cidr 만 형식을 검증하고 나머지는 백엔드에 맡긴다).
-// 오류 코드를 돌려주고, 화면에서 번역 메시지로 바꾼다.
+// 前端轻量校验（与后端一致：只校验 exact_ip / cidr 的格式，其余交给后端）。
+// 返回错误码，由界面转换成翻译后的提示文案。
 function frontValidate(form: RuleForm): "contentRequired" | "cidrInvalid" | null {
   const p = form.pattern.trim();
   if (!p) return "contentRequired";

@@ -81,61 +81,58 @@ func TestRenderSystemOverrideAndFallback(t *testing.T) {
 	}
 }
 
-// TestLangDirectiveAppendedToUserFacingRoles pins the artex-ko localization tail:
-// every user-facing role's system prompt must end with the code-owned Korean
-// output-language directive, and a DB-edited body must NOT be able to drop it.
+// TestLangDirectiveAppendedToUserFacingRoles 钉住语言规约这条尾巴：每个面向用户的
+// 角色，其 system prompt 末尾都必须带上由代码追加的简体中文输出语言规约，
+// 被数据库改动过的正文不可能把它丢掉。
 func TestLangDirectiveAppendedToUserFacingRoles(t *testing.T) {
 	t.Cleanup(func() { PromptOverride = nil })
 
-	// The directive forces Korean OUTPUT and preserves raw technical strings; both
-	// signals must be present. 한국어 marker + verbatim-preservation clause.
+	// 规约强制【简体中文】输出，同时保留命令、payload 等原文技术片段；两个信号都必须存在。
 	dir := langDirective()
-	if !strings.Contains(dir, "한국어") {
-		t.Fatalf("langDirective must force Korean output, got %q", dir)
+	if !strings.Contains(dir, "简体中文") {
+		t.Fatalf("langDirective 必须强制简体中文输出，实际得到 %q", dir)
 	}
 	if !strings.Contains(dir, "payload") || !strings.Contains(dir, "原样逐字保留") {
-		t.Fatalf("langDirective must keep commands/payloads verbatim, got %q", dir)
+		t.Fatalf("langDirective 必须逐字保留命令/payload，实际得到 %q", dir)
 	}
-	// L1 anti-drift hardening: the directive must (1) forbid leaking the Chinese
-	// instruction/brain language into user-facing text (planner situation-summary
-	// drift), and (2) forbid mirroring the target/material language — e.g. an
-	// English target app — in the display fields (report_finding drift). Both
-	// clauses are locked here so a future edit can't silently drop them.
-	if !strings.Contains(dir, "也绝不能把中文输出给用户") {
-		t.Fatalf("langDirective must forbid leaking Chinese to the user, got %q", dir)
+	// L1 防漂移加固：规约必须 (1) 禁止把简体中文以外的语言（含英文）当作展示正文
+	// （规划者态势总结漂移），以及 (2) 禁止在展示字段里镜像目标或资料的语言——
+	// 例如英文的目标应用（report_finding 漂移）。两条子句都锁在这里，
+	// 防止后续改动悄悄删掉。
+	if !strings.Contains(dir, "简体中文以外的任何语言") {
+		t.Fatalf("langDirective 必须禁止用简体中文以外的语言写展示正文，实际得到 %q", dir)
 	}
 	if !strings.Contains(dir, "不要镜像或照抄目标") {
-		t.Fatalf("langDirective must forbid mirroring the target/material language, got %q", dir)
+		t.Fatalf("langDirective 必须禁止镜像目标或资料的语言，实际得到 %q", dir)
 	}
 	if !strings.Contains(dir, "态势") {
-		t.Fatalf("langDirective must name the planner situation summary as user-facing, got %q", dir)
+		t.Fatalf("langDirective 必须点名规划者态势总结属于面向用户的字段，实际得到 %q", dir)
 	}
 
-	// Even with a DB body that is pure non-directive text, the code-owned tail is
-	// still appended for each user-facing builder — identical guarantee to the
-	// artifact tail. A custom body can never translate away the Korean mandate.
+	// 即使数据库正文是纯非规约文本，代码追加的尾巴仍会挂在每个面向用户的构造函数
+	// 后面——与中间产物尾巴是同一套保证。自定义正文永远无法把简体中文这条强制
+	// 要求翻译掉。
 	PromptOverride = func(string) (string, bool) { return "BODY-ONLY", true }
 	cases := map[string]string{
 		"worker":    workerSystem("", "", "/data", "/data"),
 		"planner":   plannerSystem("g", "/data", "/data"),
 		"mainagent": mainAgentSystem("g", "/data", "/data"),
 		"chat":      chatSystem("chat", "/data", "/data"),
-		// goals is user-facing too: set_goals/set_constraints persist goal and
-		// constraint nodes shown in the UI graph/plan tab. withScope=true exercises
-		// the longer assembly (body + scope tail), so the Korean tail must still land
-		// last — after both the body and the code-owned scope tail.
+		// goals 同样面向用户：set_goals/set_constraints 持久化的目标与约束节点会
+		// 展示在 UI 的图谱/计划页。withScope=true 会走更长的组装路径（正文 + 范围
+		// 尾巴），所以中文尾巴仍然必须落在最后——在正文与代码拥有的范围尾巴之后。
 		"goals": goalsSystem("/data", true),
 	}
 	for role, sys := range cases {
 		if !strings.HasPrefix(sys, "BODY-ONLY") {
-			t.Fatalf("%s: DB body not honored: %q", role, sys)
+			t.Fatalf("%s: 数据库正文未被采用: %q", role, sys)
 		}
-		if !strings.Contains(sys, "한국어") {
-			t.Fatalf("%s: missing Korean output-language tail: %q", role, sys)
+		if !strings.Contains(sys, "简体中文") {
+			t.Fatalf("%s: 缺少简体中文输出语言尾巴: %q", role, sys)
 		}
-		// The directive is the tail — it must come AFTER the body (recency).
-		if strings.Index(sys, "한국어") <= strings.Index(sys, "BODY-ONLY") {
-			t.Fatalf("%s: langDirective must be appended after the body: %q", role, sys)
+		// 规约就是那条尾巴——必须排在正文之后（就近生效）。
+		if strings.Index(sys, "简体中文") <= strings.Index(sys, "BODY-ONLY") {
+			t.Fatalf("%s: langDirective 必须追加在正文之后: %q", role, sys)
 		}
 	}
 }

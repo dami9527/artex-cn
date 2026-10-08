@@ -15,27 +15,26 @@ import (
 
 const maxChatMentions = 10
 
-// User-facing @멘션(인용) error messages surfaced through the HTTP API, localized
-// to Korean (BRIEF 현지화 방침). 用語: 引用→인용(UI mentionTextarea 네임스페이스
-// 정합). 보존 대상은 여기 없다: 와이어 토큰 라벨(chatMentionPattern·
-// chatMentionKinds)과 에이전트 입력 스냅샷 헤더·절단 표시(composeChatMentionMessage
-// 안)는 표시 문구가 아니라 두뇌 입력 형식이라 원문 그대로 둔다.
+// 通过 HTTP API 返回给用户的 @引用(mention) 错误文案。术语与 UI
+// mentionTextarea 命名空间对齐。这里没有需要保留的原文：线格式 token 标签
+// (chatMentionPattern·chatMentionKinds)和 agent 输入快照头、截断提示
+// (composeChatMentionMessage 内)不是展示文案，而是模型输入格式，保持原样。
 const (
-	errChatMentionBadID       = "인용 ID 가 올바르지 않습니다. 다시 선택해 주세요"
-	errChatMentionTooMany     = "메시지 한 건에는 레코드를 최대 10개까지 인용할 수 있습니다"
-	errChatMentionBadSearch   = "인용 유형이 올바르지 않거나 검색어가 200자를 초과했습니다"
-	errChatMentionDataUnavail = "인용 데이터를 현재 사용할 수 없습니다"
-	errChatMentionTooLarge    = "인용한 내용이 너무 큽니다. 인용 레코드를 줄인 뒤 다시 시도해 주세요"
-	errChatMentionNotFoundFmt = "인용한 %s #%d 레코드가 존재하지 않거나 유형이 일치하지 않습니다. 제거한 뒤 다시 선택해 주세요"
+	errChatMentionBadID       = "引用 ID 无效，请重新选择"
+	errChatMentionTooMany     = "每条消息最多引用 10 条记录"
+	errChatMentionBadSearch   = "引用类型无效或搜索关键词超过 200 字"
+	errChatMentionDataUnavail = "引用数据暂不可用"
+	errChatMentionTooLarge    = "引用内容过大，请减少引用记录后重试"
+	errChatMentionNotFoundFmt = "引用的%s #%d 不存在或类型不匹配，请移除后重新选择"
 )
 
-// chatMentionKindLabel: 사용자 노출 오류에서만 쓰는 표시 전용 한국어 라벨.
-// UI `mentionTextarea.kind.*` 와 같은 용어를 쓴다. 와이어 토큰(chatMentionPattern·
-// chatMentionKinds)과 에이전트 입력(ref.Name, composeChatMentionMessage 안)은
-// 중국어 라벨을 그대로 유지한다 — 프론트 멘션 칩 표시 i18n(F30)과 분리된 별건.
+// chatMentionKindLabel: 只用于用户可见错误展示的标签，与 UI
+// `mentionTextarea.kind.*` 用词一致。线格式 token(chatMentionPattern·
+// chatMentionKinds)与 agent 输入(ref.Name,在 composeChatMentionMessage 内)保持原样
+// —— 与前端的 mention 芯片展示 i18n(F30)是两件事。
 var chatMentionKindLabel = map[string]string{
-	"finding": "취약점", "asset": "자산", "company": "기업", "endpoint": "엔드포인트",
-	"ip": "IP", "app": "앱", "root_domain": "도메인", "subdomain": "서브도메인", "service": "서비스",
+	"finding": "漏洞", "asset": "资产", "company": "企业", "endpoint": "接口",
+	"ip": "IP", "app": "应用", "root_domain": "域名", "subdomain": "子域名", "service": "服务",
 }
 
 // The visible token survives drafts, uploads, retries and conversation history.
@@ -134,7 +133,7 @@ func composeChatMentionMessage(pg *db.DB, message string) (string, error) {
 			return "", err
 		}
 		if data == nil {
-			// 와이어 라벨(ref.Name, 중국어)은 보존하되, 표시는 한국어 라벨로.
+			// 线格式标签(ref.Name)保持原样，展示时按 ref.Kind 取展示标签。
 			label := chatMentionKindLabel[ref.Kind]
 			if label == "" {
 				label = ref.Name
