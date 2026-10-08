@@ -9,9 +9,9 @@
 검사 방식
 ---------
 `web/out` 아래 모든 `.html` 파일의 **원시 내용**(렌더된 마크업뿐 아니라 인라인
-스크립트·React Server Components 플라이트 데이터까지)을 훑어 한자가 하나라도 있으면
+스크립트·React Server Components 플라이이트 데이터까지)을 훑어 한자가 하나라도 있으면
 종료 코드 1 로 끝난다. 원시 내용을 그대로 보는 이유는, 사용자에게 보이는 텍스트가
-플라이트 데이터(JSON 꼴 문자열)에 실려 HTML 에 함께 내려오기 때문이다. 태그만
+플라이이트 데이터(JSON 꼴 문자열)에 실려 HTML 에 함께 내려오기 때문이다. 태그만
 벗겨 내면 그 경로의 누출을 놓친다.
 
 검사 범위 밖 (정직한 한계)
@@ -48,6 +48,15 @@
 생기면, 그 글자를 아래 `ALLOWED_HAN` 에 추가하고 왜 남기는지 주석으로 적는다. 그래야
 게이트는 엄격하게 유지되면서도 의도된 예외만 좁게 통과시킬 수 있다.
 
+중국어 빌드(`NEXT_PUBLIC_LOCALE=zh`)
+----------------------------------
+locale 은 정적 내보내기 시점에 HTML 에 박히므로(web/src/i18n/config.ts 의
+resolveLocale), `NEXT_PUBLIC_LOCALE=zh` 로 빌드하면 화면이 전부 중국어가 된다. 그
+경우까지 이 게이트가 한자를 "누출"로 잡으면 의도한 중국어 빌드가 머지 게이트에서
+막힌다. 그래서 `NEXT_PUBLIC_LOCALE` 이 지원 목록 안이고 그 값이 `zh` 이면 검사를
+건너뛴다(종료 0). 값이 없거나 `ko` 이면 지금까지처럼 한자 0 을 강제한다 —
+기본(한국어) 빌드에서 중국어가 새는 회귀는 그대로 잡는다.
+
 표준 라이브러리만 쓰고 네트워크에 접속하지 않는다.
 실행: `python3 -I scripts/check-web-cjk.py [out 디렉터리]`
 (기본값은 저장소 루트의 `web/out`. CI 는 `web` 작업 디렉터리에서
@@ -58,15 +67,58 @@ import re
 import subprocess
 import sys
 
+# web/src/i18n/config.ts 의 LOCALES·DEFAULT_LOCALE 과 같은 값. 표준 라이브러리만 쓰는
+# 스크립트라 TypeScript 를 import 할 수 없어 복제하고, verify_locale_source() 로
+# 원본과 어긋나지 않았는지 확인한다(조용히 갈라지면 게이트가 엉뚱한 기준으로 돈다).
+LOCALES = ("ko", "zh")
+DEFAULT_LOCALE = "ko"
+
 # CJK 한자 블록만. 한글(AC00–D7A3)·가나·전각 문장부호는 들어 있지 않다.
 # 범위: 확장 A + 통합 한자(U+3400–U+9FFF = 㐀–鿿), 호환 한자(U+F900–U+FAFF = 豈–﫿),
 #       보충 평면 확장 B 이상(U+20000–U+2FFFF).
-HAN = re.compile(r"[㐀-鿿豈-﫿\U00020000-\U0002ffff]")
+HAN = re.compile(r"[\u3400-\u9fff\uf900-\ufaff\U00020000-\U0002ffff]")
 
 # 화면에 일부러 남기는 한자(예: 언어 스위처 `中文`). 지금은 비어 있다 —
 # 비우면 어떤 한자든 게이트에 걸린다. 예외를 더할 때는 글자와 사유를 함께 적는다.
 # 예) ALLOWED_HAN = {"中", "文"}  # 언어 스위처 '中文' 라벨(상류 대조용)
 ALLOWED_HAN: set = set()
+
+
+def resolve_locale() -> str:
+    """빌드에 쓰인 locale 을 정한다(web/src/i18n/config.ts 의 resolveLocale 과 같은 규칙)."""
+    raw = os.environ.get("NEXT_PUBLIC_LOCALE")
+    return raw if raw in LOCALES else DEFAULT_LOCALE
+
+
+def verify_locale_source() -> None:
+    """config.ts 의 LOCALES·DEFAULT_LOCALE 과 위 복제값이 일치하는지 확인한다."""
+    try:
+        root = subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"], text=True
+        ).strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return  # git 이 없으면 대조만 건너뛴다(검사 자체는 계속한다)
+    try:
+        with open(
+            os.path.join(root, "web", "src", "i18n", "config.ts"), encoding="utf-8"
+        ) as fh:
+            src = fh.read()
+    except OSError:
+        return
+    m = re.search(r"LOCALES\s*=\s*\[([^\]]*)\]", src)
+    if m:
+        found = tuple(re.findall(r'"([^"]+)"', m.group(1)))
+        if found and found != LOCALES:
+            raise SystemExit(
+                f"오류: web/src/i18n/config.ts 의 LOCALES={found} 가 이 스크립트의 "
+                f"LOCALES={LOCALES} 와 다릅니다. 둘을 맞추세요."
+            )
+    m = re.search(r'DEFAULT_LOCALE[^=]*=\s*"([^"]+)"', src)
+    if m and m.group(1) != DEFAULT_LOCALE:
+        raise SystemExit(
+            f"오류: web/src/i18n/config.ts 의 DEFAULT_LOCALE={m.group(1)!r} 가 "
+            f"이 스크립트의 {DEFAULT_LOCALE!r} 와 다릅니다. 둘을 맞추세요."
+        )
 
 
 def find_out_dir() -> str:
@@ -83,6 +135,14 @@ def find_out_dir() -> str:
 
 
 def main() -> int:
+    verify_locale_source()
+    if resolve_locale() == "zh":
+        print(
+            "NEXT_PUBLIC_LOCALE=zh — 중국어 UI 빌드이므로 한자 검사를 건너뜁니다"
+            "(의도된 중국어이며 누출이 아님)."
+        )
+        return 0
+
     out_dir = find_out_dir()
     if not os.path.isdir(out_dir):
         print(
@@ -115,7 +175,9 @@ def main() -> int:
             print(f"  out/{rel}: 한자 {count}개 · 종류 {preview}")
         print(
             "\n한글로 번역하거나, 상류 보존이 꼭 필요한 의도적 한자라면 "
-            "scripts/check-web-cjk.py 의 ALLOWED_HAN 에 사유와 함께 추가하세요."
+            "scripts/check-web-cjk.py 의 ALLOWED_HAN 에 사유와 함께 추가하세요.\n"
+            "중국어 UI 로 일부러 빌드한 것이라면 `NEXT_PUBLIC_LOCALE=zh` 를 설정한 뒤 "
+            "다시 실행하세요(그 경우 이 검사를 건너뜁니다)."
         )
         return 1
     if checked == 0:

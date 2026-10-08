@@ -103,6 +103,30 @@ docker compose up -d --build  # build the Korean edition image and bring it up w
 
 `./skills` and `./data` are bind-mounted to the host and survive container recreation.
 
+### Switching the UI language (Korean ↔ Chinese)
+
+This repository is the **Korean edition**, so the default UI language is Korean (`ko`). You can also build the Chinese UI (`zh`). The locale is **baked into the HTML at static-export time** (`resolveLocale` in `web/src/i18n/config.ts` reads `NEXT_PUBLIC_LOCALE`), so after changing it you **must rebuild**.
+
+```bash
+# put NEXT_PUBLIC_LOCALE=zh in .env, then
+docker compose up -d --build
+
+# or specify it for a single run
+NEXT_PUBLIC_LOCALE=zh docker compose up -d --build
+```
+
+If you build without Docker, pass the same variable to `next build`.
+
+```bash
+cd web && NEXT_EXPORT=1 NEXT_PUBLIC_LOCALE=zh npx next build && cd ..
+mkdir -p server/webui/dist && rsync -a --delete web/out/ server/webui/dist/
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -tags embedui -o dist/arm64/artex ./cmd/artex
+```
+
+> **Important: this changes only the on-screen text.** The language of the **vulnerability reports, fact summaries, final summaries and chat replies the agent writes is decided by Go code** (`langDirective()` in `agent/prompt.go` forces Korean output — that is this fork's design). So with a Chinese UI the agent still writes Korean. Changing that too means editing `langDirective()` and the test that pins its contract (`agent/prompt_test.go`), which reverts this fork's localization design.
+
+> Building the Chinese UI makes `scripts/check-web-cjk.py` (the merge gate that enforces zero Han characters) fail. To declare the Chinese build intentional, set `NEXT_PUBLIC_LOCALE=zh` when running the check as well — it then skips.
+
 ---
 
 ## Building the Korean edition image locally

@@ -110,6 +110,30 @@ docker compose up -d --build  # 한국어판 이미지를 직접 빌드해 postg
 
 `./skills` 와 `./data` 는 바인드 마운트로 호스트에 남아 컨테이너를 다시 만들어도 보존됩니다.
 
+### UI 언어 바꾸기 (한국어 ↔ 중국어)
+
+이 저장소는 **한국어판**이라 기본 UI 언어가 한국어(`ko`)입니다. 중국어 UI(`zh`)로도 빌드할 수 있습니다. locale 은 **정적 내보내기 시점에 HTML 에 박히므로**(`web/src/i18n/config.ts` 의 `resolveLocale` 이 `NEXT_PUBLIC_LOCALE` 을 읽습니다) 값을 바꾼 뒤에는 **반드시 다시 빌드**해야 합니다.
+
+```bash
+# .env 에 NEXT_PUBLIC_LOCALE=zh 를 둔 뒤
+docker compose up -d --build
+
+# 또는 한 번만 지정해서
+NEXT_PUBLIC_LOCALE=zh docker compose up -d --build
+```
+
+Docker 없이 직접 빌드한다면 같은 변수를 `next build` 에 넘깁니다.
+
+```bash
+cd web && NEXT_EXPORT=1 NEXT_PUBLIC_LOCALE=zh npx next build && cd ..
+mkdir -p server/webui/dist && rsync -a --delete web/out/ server/webui/dist/
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -tags embedui -o dist/arm64/artex ./cmd/artex
+```
+
+> **중요: 바뀌는 것은 화면 문구뿐입니다.** 에이전트가 쓰는 **취약점 리포트·사실 요약·최종 요약·채팅 응답의 언어는 Go 코드가 정합니다**(`agent/prompt.go` 의 `langDirective()` 가 한국어 출력을 강제하며, 이는 이 포크의 설계입니다). 따라서 중국어 UI 로 빌드해도 에이전트 출력은 한국어입니다. 그 출력까지 중국어로 바꾸려면 `langDirective()` 와 그 계약을 검증하는 테스트(`agent/prompt_test.go`)를 함께 고쳐야 하며, 이는 이 포크의 한국어화 설계를 되돌리는 변경입니다.
+
+> 중국어 UI 로 빌드하면 `scripts/check-web-cjk.py`(한자 누출 0 을 강제하는 머지 게이트)가 실패합니다. 의도한 중국어 빌드임을 알리려면 검사할 때도 `NEXT_PUBLIC_LOCALE=zh` 를 설정하십시오 — 그러면 검사를 건너뜁니다.
+
 ---
 
 ## 한국어판 이미지를 직접 빌드하기

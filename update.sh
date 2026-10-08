@@ -12,6 +12,14 @@ warn(){ printf '\033[33m[!]\033[0m %s\n' "$*"; }
 die(){  printf '\033[31m[x]\033[0m %s\n' "$*" >&2; exit 1; }
 ask(){  local p="$1" d="${2:-}" a; read -rp "$p${d:+ [$d]}: " a; echo "${a:-$d}"; }
 
+# .env 를 있으면 읽어 설정(POSTGRES_PASSWORD·NEXT_PUBLIC_LOCALE 등)을 한 곳에서 관리한다.
+load_env(){
+  [ -f .env ] || return 0
+  set +u                      # set -u 상태에서 .env 의 빈 값이 오류가 되지 않게 한다
+  set -a; . ./.env; set +a
+  set -u
+}
+
 # ── 선택: 저장소를 최신 코드로 동기화합니다(compose·스크립트·로컬 컴파일 소스가 모두 이걸로 갱신됩니다) ───────
 sync_repo(){
   [ -d .git ] && command -v git >/dev/null 2>&1 || { warn "git 작업 사본이 아니라 git pull 을 건너뜁니다"; return; }
@@ -35,8 +43,9 @@ update_docker(){
 
   # 컨테이너는 항상 Linux 이므로 호스트 OS 와 무관하게 GOOS=linux 로 컴파일한다.
   local arch; arch="$(go env GOARCH)"
-  info "프런트엔드를 다시 빌드합니다…"
-  ( cd web && npm ci --include=dev && NEXT_EXPORT=1 npx next build )
+  load_env
+  info "프런트엔드를 다시 빌드합니다… (UI 언어: ${NEXT_PUBLIC_LOCALE:-ko})"
+  ( cd web && npm ci --include=dev && NEXT_EXPORT=1 NEXT_PUBLIC_LOCALE="${NEXT_PUBLIC_LOCALE:-ko}" npx next build )
   mkdir -p server/webui/dist
   rsync -a --delete web/out/ server/webui/dist/
   info "Linux/${arch} 바이너리를 다시 컴파일합니다…"
@@ -62,8 +71,9 @@ update_local(){
   ok "Go: $(go version)"
 
   if command -v npm >/dev/null 2>&1; then
-    info "프런트엔드 정적 산출물을 다시 빌드합니다…"
-    ( cd web && npm ci && npm run build:static )
+    load_env
+    info "프런트엔드 정적 산출물을 다시 빌드합니다… (UI 언어: ${NEXT_PUBLIC_LOCALE:-ko})"
+    ( cd web && npm ci && NEXT_EXPORT=1 NEXT_PUBLIC_LOCALE="${NEXT_PUBLIC_LOCALE:-ko}" npm run build:static )
     rm -rf server/webui/dist && cp -r web/out server/webui/dist
     info "프런트엔드를 내장한 단일 바이너리를 다시 컴파일합니다…"
     CGO_ENABLED=0 go build -tags embedui -trimpath -o artex ./cmd/artex

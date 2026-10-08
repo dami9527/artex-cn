@@ -8,6 +8,14 @@ ok(){   printf '\033[32m[+]\033[0m %s\n' "$*"; }
 warn(){ printf '\033[33m[!]\033[0m %s\n' "$*"; }
 die(){  printf '\033[31m[x]\033[0m %s\n' "$*" >&2; exit 1; }
 ask(){  local p="$1" d="${2:-}" a; read -rp "$p${d:+ [$d]}: " a; echo "${a:-$d}"; }
+
+# .env 를 있으면 읽어 설정(POSTGRES_PASSWORD·NEXT_PUBLIC_LOCALE 등)을 한 곳에서 관리한다.
+load_env(){
+  [ -f .env ] || return 0
+  set +u                      # set -u 상태에서 .env 의 빈 값이 오류가 되지 않게 한다
+  set -a; . ./.env; set +a
+  set -u
+}
 rand(){ head -c 18 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24; }
 
 # ── docker 환경 감지 / 자동 설치 ──────────────────
@@ -41,8 +49,9 @@ build_artex_image(){
 
   # 컨테이너는 항상 Linux 이므로 호스트 OS 와 무관하게 GOOS=linux 로 컴파일한다.
   arch="$(go env GOARCH)"
-  info "프런트엔드를 빌드합니다(몇 분 걸릴 수 있습니다)…"
-  (cd web && npm ci --include=dev && NEXT_EXPORT=1 npx next build)
+  load_env
+  info "프런트엔드를 빌드합니다(몇 분 걸릴 수 있습니다)… (UI 언어: ${NEXT_PUBLIC_LOCALE:-ko})"
+  (cd web && npm ci --include=dev && NEXT_EXPORT=1 NEXT_PUBLIC_LOCALE="${NEXT_PUBLIC_LOCALE:-ko}" npx next build)
   mkdir -p server/webui/dist
   rsync -a --delete web/out/ server/webui/dist/
   info "Linux/${arch} 바이너리를 컴파일합니다…"
