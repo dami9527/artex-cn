@@ -112,23 +112,17 @@ docker compose up -d --build  # 한국어판 이미지를 직접 빌드해 postg
 
 ### UI 언어 바꾸기 (한국어 ↔ 중국어)
 
-이 저장소는 **한국어판**이라 기본 UI 언어가 한국어(`ko`)입니다. 중국어 UI(`zh`)로도 빌드할 수 있습니다. locale 은 **정적 내보내기 시점에 HTML 에 박히므로**(`web/src/i18n/config.ts` 의 `resolveLocale` 이 `NEXT_PUBLIC_LOCALE` 을 읽습니다) 값을 바꾼 뒤에는 **반드시 다시 빌드**해야 합니다.
+이 저장소는 **한국어판**이라 기본 UI 언어가 한국어(`ko`)입니다. 중국어 UI(`zh`)로도 빌드할 수 있습니다.
 
 ```bash
-# .env 에 NEXT_PUBLIC_LOCALE=zh 를 둔 뒤
-docker compose up -d --build
-
-# 또는 한 번만 지정해서
-NEXT_PUBLIC_LOCALE=zh docker compose up -d --build
+./build-image.sh --locale zh     # 중국어 UI 로 빌드하고 기동
+./build-image.sh                 # .env 의 NEXT_PUBLIC_LOCALE(기본 ko)로 빌드하고 기동
+./build-image.sh --locale ko     # 한국어로 되돌리기
 ```
 
-Docker 없이 직접 빌드한다면 같은 변수를 `next build` 에 넘깁니다.
+`.env` 에 `NEXT_PUBLIC_LOCALE=zh` 를 두고 `./build-image.sh` 만 실행해도 됩니다. 같은 언어로 이미 빌드돼 있으면 다시 빌드하지 않고 재사용하며(강제하려면 `--force`), 기동만 건너뛰려면 `--no-up` 을 씁니다.
 
-```bash
-cd web && NEXT_EXPORT=1 NEXT_PUBLIC_LOCALE=zh npx next build && cd ..
-mkdir -p server/webui/dist && rsync -a --delete web/out/ server/webui/dist/
-CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -tags embedui -o dist/arm64/artex ./cmd/artex
-```
+> **⚠️ `NEXT_PUBLIC_LOCALE=zh docker compose up -d --build` 는 동작하지 않습니다.** 이 프로젝트의 `Dockerfile` 은 **컨테이너 안에서 프런트엔드를 컴파일하지 않는 "실행 전용" 이미지**입니다(`COPY dist/<arch>/artex` 로 미리 만든 Linux 바이너리를 넣고, 그 바이너리에 `web/out` 이 embed 되어 있습니다). 따라서 compose 는 그 바이너리를 그대로 복사할 뿐이고(`COPY` 가 `CACHED` 로 끝납니다), **UI 언어는 호스트에서 `next build` 를 돌릴 때 정해집니다.** 위 `build-image.sh` 가 그 앞단을 대신 처리합니다.
 
 > **중요: 바뀌는 것은 화면 문구뿐입니다.** 에이전트가 쓰는 **취약점 리포트·사실 요약·최종 요약·채팅 응답의 언어는 Go 코드가 정합니다**(`agent/prompt.go` 의 `langDirective()` 가 한국어 출력을 강제하며, 이는 이 포크의 설계입니다). 따라서 중국어 UI 로 빌드해도 에이전트 출력은 한국어입니다. 그 출력까지 중국어로 바꾸려면 `langDirective()` 와 그 계약을 검증하는 테스트(`agent/prompt_test.go`)를 함께 고쳐야 하며, 이는 이 포크의 한국어화 설계를 되돌리는 변경입니다.
 

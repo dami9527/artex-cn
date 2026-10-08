@@ -41,27 +41,12 @@ ensure_docker(){
 # ── ① 전부 Docker ──────────────────────────────
 # Dockerfile 은 "실행 전용"이라 미리 컴파일한 Linux 바이너리(dist/<arch>/artex)를 요구한다.
 # 상류 이미지 autumn27/artex 는 Docker Hub 에서 사라졌으므로 pull 로는 기동할 수 없다.
+# 빌드 로직(프런트엔드 → 내장 → Linux 바이너리)은 build-image.sh 한 곳에 둔다.
+# 언어 판정·재빌드 필요 여부·.env 읽기도 그 스크립트가 맡으므로, 여기서는 위임만 한다
+# (같은 로직을 두 벌 두면 UI 언어가 조용히 어긋난다).
 build_artex_image(){
-  local os arch
-  command -v go >/dev/null 2>&1 || die "Go 가 필요합니다(Docker 이미지에 넣을 바이너리를 컴파일합니다). https://go.dev/dl/"
-  command -v npm >/dev/null 2>&1 || die "Node.js/npm 이 필요합니다(프런트엔드 정적 빌드)"
-  command -v rsync >/dev/null 2>&1 || die "rsync 가 필요합니다"
-
-  # 컨테이너는 항상 Linux 이므로 호스트 OS 와 무관하게 GOOS=linux 로 컴파일한다.
-  arch="$(go env GOARCH)"
-  load_env
-  info "프런트엔드를 빌드합니다(몇 분 걸릴 수 있습니다)… (UI 언어: ${NEXT_PUBLIC_LOCALE:-ko})"
-  (cd web && npm ci --include=dev && NEXT_EXPORT=1 NEXT_PUBLIC_LOCALE="${NEXT_PUBLIC_LOCALE:-ko}" npx next build)
-  mkdir -p server/webui/dist
-  rsync -a --delete web/out/ server/webui/dist/
-  info "Linux/${arch} 바이너리를 컴파일합니다…"
-  mkdir -p "dist/${arch}"
-  info "(첫 빌드에서는 Playwright 브라우저 다운로드 때문에 몇 분 더 걸릴 수 있습니다)"
-  CGO_ENABLED=0 GOOS=linux GOARCH="${arch}" go build \
-    -tags embedui -trimpath \
-    -ldflags "-s -w -buildid= -X main.version=0.3.15-ko" \
-    -o "dist/${arch}/artex" ./cmd/artex
-  ok "바이너리 준비 완료: dist/${arch}/artex"
+  [ -x ./build-image.sh ] || die "build-image.sh 를 찾을 수 없습니다(실행 권한 포함)"
+  ./build-image.sh --no-up
 }
 
 install_docker(){
@@ -79,10 +64,10 @@ install_docker(){
     info "이미 있는 .env 파일을 그대로 사용합니다"
   fi
   build_artex_image
-  info "한국어판 이미지를 빌드하고 기동합니다…"
+  info "이미지를 빌드하고 기동합니다…"
   docker compose up -d --build
-  ok "기동을 완료했습니다 → http://localhost:8787"
-  info "이 이미지는 한국어판(한국어 UI·한국어 리포트)입니다."
+  ok "기동을 완료했습니다 → http://localhost:8787 (UI 언어: ${NEXT_PUBLIC_LOCALE:-ko})"
+  info "UI 언어를 바꾸려면: ./build-image.sh --locale zh (또는 .env 의 NEXT_PUBLIC_LOCALE)"
   info "로그 확인: docker compose logs -f artex"
 }
 

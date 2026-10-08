@@ -105,23 +105,17 @@ docker compose up -d --build  # build the Korean edition image and bring it up w
 
 ### Switching the UI language (Korean ↔ Chinese)
 
-This repository is the **Korean edition**, so the default UI language is Korean (`ko`). You can also build the Chinese UI (`zh`). The locale is **baked into the HTML at static-export time** (`resolveLocale` in `web/src/i18n/config.ts` reads `NEXT_PUBLIC_LOCALE`), so after changing it you **must rebuild**.
+This repository is the **Korean edition**, so the default UI language is Korean (`ko`). You can also build the Chinese UI (`zh`).
 
 ```bash
-# put NEXT_PUBLIC_LOCALE=zh in .env, then
-docker compose up -d --build
-
-# or specify it for a single run
-NEXT_PUBLIC_LOCALE=zh docker compose up -d --build
+./build-image.sh --locale zh     # build and start with the Chinese UI
+./build-image.sh                 # build and start with NEXT_PUBLIC_LOCALE from .env (default ko)
+./build-image.sh --locale ko     # switch back to Korean
 ```
 
-If you build without Docker, pass the same variable to `next build`.
+You can also put `NEXT_PUBLIC_LOCALE=zh` in `.env` and just run `./build-image.sh`. If the binary was already built for the same language it is reused instead of rebuilt (pass `--force` to override, `--no-up` to skip starting).
 
-```bash
-cd web && NEXT_EXPORT=1 NEXT_PUBLIC_LOCALE=zh npx next build && cd ..
-mkdir -p server/webui/dist && rsync -a --delete web/out/ server/webui/dist/
-CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -tags embedui -o dist/arm64/artex ./cmd/artex
-```
+> **⚠️ `NEXT_PUBLIC_LOCALE=zh docker compose up -d --build` does not work.** This project's `Dockerfile` is a **run-only image that does not compile the frontend inside the container** (it does `COPY dist/<arch>/artex`, a pre-built Linux binary with `web/out` embedded). So compose merely copies that binary (`COPY` finishes as `CACHED`), and **the UI language is decided when `next build` runs on the host.** `build-image.sh` above performs that host-side step for you.
 
 > **Important: this changes only the on-screen text.** The language of the **vulnerability reports, fact summaries, final summaries and chat replies the agent writes is decided by Go code** (`langDirective()` in `agent/prompt.go` forces Korean output — that is this fork's design). So with a Chinese UI the agent still writes Korean. Changing that too means editing `langDirective()` and the test that pins its contract (`agent/prompt_test.go`), which reverts this fork's localization design.
 

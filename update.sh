@@ -36,32 +36,11 @@ update_docker(){
   command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1 \
     || die "docker / docker compose 를 찾을 수 없습니다. 먼저 ./install.sh 로 설치·배포하세요"
   [ -f .env ] || die ".env 를 찾을 수 없습니다. 먼저 ./install.sh 로 최초 배포를 완료하세요"
+  [ -x ./build-image.sh ] || die "build-image.sh 를 찾을 수 없습니다(실행 권한 포함)"
 
-  command -v go >/dev/null 2>&1 || die "Go 가 필요합니다(이미지에 넣을 바이너리를 컴파일합니다): https://go.dev/dl/"
-  command -v npm >/dev/null 2>&1 || die "Node.js/npm 이 필요합니다(프런트엔드 정적 빌드)"
-  command -v rsync >/dev/null 2>&1 || die "rsync 가 필요합니다"
-
-  # 컨테이너는 항상 Linux 이므로 호스트 OS 와 무관하게 GOOS=linux 로 컴파일한다.
-  local arch; arch="$(go env GOARCH)"
-  load_env
-  info "프런트엔드를 다시 빌드합니다… (UI 언어: ${NEXT_PUBLIC_LOCALE:-ko})"
-  ( cd web && npm ci --include=dev && NEXT_EXPORT=1 NEXT_PUBLIC_LOCALE="${NEXT_PUBLIC_LOCALE:-ko}" npx next build )
-  mkdir -p server/webui/dist
-  rsync -a --delete web/out/ server/webui/dist/
-  info "Linux/${arch} 바이너리를 다시 컴파일합니다…"
-  mkdir -p "dist/${arch}"
-  CGO_ENABLED=0 GOOS=linux GOARCH="${arch}" go build \
-    -tags embedui -trimpath \
-    -ldflags "-s -w -buildid= -X main.version=0.3.15-ko" \
-    -o "dist/${arch}/artex" ./cmd/artex
-
-  # artex 만 다시 빌드·재구성합니다. postgres 는 16-alpine 으로 고정이라 따라 올릴 필요가 없습니다.
-  # artex 는 depends_on postgres 를 선언하므로 서비스명을 붙여 up 하면 pg 가 안 떠 있을 때 자동으로 띄웁니다.
-  info "이미지를 다시 빌드하고 재구성합니다(artex 는 재시작 시 schema 를 자동으로 마이그레이션합니다)…"
-  docker compose up -d --build artex
-  ok "업데이트 완료 → http://localhost:8787"
-  info "로그 보기: docker compose logs -f artex"
-  info "오래된 이미지 정리(선택): docker image prune -f"
+  # 빌드(프런트엔드 → 내장 → Linux 바이너리)와 언어 판정은 build-image.sh 가 맡는다.
+  # 언어가 그대로면 다시 빌드하지 않고, 바뀌었으면 그 언어로 다시 빌드한 뒤 기동한다.
+  ./build-image.sh
 }
 
 # ── ② 로컬 컴파일 업데이트 ──────────────────────────────
