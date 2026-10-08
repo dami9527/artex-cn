@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Autumn-27/artex/agent"
+	"github.com/Autumn-27/artex/config"
 	"github.com/Autumn-27/artex/db"
 	"github.com/Autumn-27/artex/intercept"
 	actool "github.com/Autumn-27/norma/tool"
@@ -205,6 +206,22 @@ func (s *Server) findingRetestTools() []actool.CoreTool {
 
 // Seed the editable agent atomically, without an automatic discovery trigger.
 // Once seeded, user edits/deletion survive restarts; a pre-existing key is kept.
+// retester(취약점 재검증) 에이전트의 표시 전용 라벨. system/agents·대화 선택기 화면에만
+// 렌더되고 어떤 프롬프트에도 들어가지 않는다(도구 설명·파라미터 설명·actool.Errorf 같은
+// 두뇌 입력은 위 상단 주석대로 원문 보존). 런타임 locale(config.Locale)에 따라 고른다.
+const retesterAgentName = "취약점 재검증"
+const retesterAgentDescription = "취약점 상세 화면에서 수동으로 시작하며, 원래 증거를 읽고 독립적인 재검증 결론을 저장합니다."
+const retesterAgentNameZh = "漏洞复测"
+const retesterAgentDescriptionZh = "从漏洞详情手动启动，读取原证据并保存独立复测结论。"
+
+// retesterAgentLabels 는 런타임 locale 에 맞는 retester 표시 라벨을 돌려준다.
+func retesterAgentLabels() (name, desc string) {
+	if config.Locale() == "zh" {
+		return retesterAgentNameZh, retesterAgentDescriptionZh
+	}
+	return retesterAgentName, retesterAgentDescription
+}
+
 func (s *Server) seedFindingRetester() error {
 	for _, t := range s.findingRetestTools() {
 		schema, _ := json.Marshal(t.InputSchema())
@@ -232,9 +249,10 @@ func (s *Server) seedFindingRetester() error {
 		return nil
 	}
 	var id int64
+	name, desc := retesterAgentLabels()
 	err = tx.QueryRow(`INSERT INTO agents(key,name,description,role,builtin,enabled)
-	VALUES ($1,'漏洞复测','从漏洞详情手动启动，读取原证据并保存独立复测结论。','assistant',false,true)
-	ON CONFLICT (key) DO NOTHING RETURNING id`, db.FindingRetestAgentKey).Scan(&id)
+	VALUES ($1,$2,$3,'assistant',false,true)
+	ON CONFLICT (key) DO NOTHING RETURNING id`, db.FindingRetestAgentKey, name, desc).Scan(&id)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}

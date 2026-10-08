@@ -109,7 +109,7 @@ This repository is the **Korean edition**, so the default UI language is Korean 
 
 ```bash
 ./build-image.sh --locale zh     # build and start with the Chinese UI
-./build-image.sh                 # build and start with NEXT_PUBLIC_LOCALE from .env (default ko)
+./build-image.sh                 # build and start with ARTEX_LOCALE from .env (default ko)
 ./build-image.sh --locale ko     # switch back to Korean
 ```
 

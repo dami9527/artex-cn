@@ -50,7 +50,10 @@ while [ "$#" -gt 0 ]; do
 done
 
 load_env
-LOCALE="${LOCALE_OVERRIDE:-${NEXT_PUBLIC_LOCALE:-ko}}"
+# 우선순위: --locale 인자 > ARTEX_LOCALE(.env) > NEXT_PUBLIC_LOCALE > ko.
+# ARTEX_LOCALE 을 먼저 보는 이유: 그 값이 컨테이너 런타임 언어(서버가 시드하는
+# agent 표시 이름)까지 정하므로, UI 와 서버가 같은 값을 쓰도록 한 곳에서 온다.
+LOCALE="${LOCALE_OVERRIDE:-${ARTEX_LOCALE:-${NEXT_PUBLIC_LOCALE:-ko}}}"
 case "$LOCALE" in
   ko|zh) ;;
   *) die "지원하지 않는 locale 입니다: $LOCALE (ko 또는 zh)" ;;
@@ -100,7 +103,10 @@ fi
 
 if [ "$DO_UP" = "1" ]; then
   info "이미지를 빌드하고 기동합니다…"
-  docker compose up -d --build
+  # 프런트엔드 locale 은 빌드 시점에 HTML 에 박히고, 서버는 그 값을 알 수 없다. 그래서
+  # 서버가 DB 에 시드하는 표시 이름(reporter 등)의 언어는 런타임 값으로 넘겨 두 값을
+  # 일치시킨다 — 이걸 빠뜨리면 중국어 UI 에 한국어 agent 이름이 섞인다.
+  ARTEX_LOCALE="$LOCALE" docker compose up -d --build
   ok "완료 → http://localhost:8787 (UI 언어: ${LOCALE})"
   [ "$LOCALE" = "zh" ] && info "에이전트가 쓰는 리포트·요약·채팅 응답은 여전히 한국어입니다(Go 코드가 정함)."
   info "로그 확인: docker compose logs -f artex"

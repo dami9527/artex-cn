@@ -116,7 +116,7 @@ docker compose up -d --build  # 한국어판 이미지를 직접 빌드해 postg
 
 ```bash
 ./build-image.sh --locale zh     # 중국어 UI 로 빌드하고 기동
-./build-image.sh                 # .env 의 NEXT_PUBLIC_LOCALE(기본 ko)로 빌드하고 기동
+./build-image.sh                 # .env 의 ARTEX_LOCALE(기본 ko)로 빌드하고 기동
 ./build-image.sh --locale ko     # 한국어로 되돌리기
 ```
 

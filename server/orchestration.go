@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Autumn-27/artex/agent"
+	"github.com/Autumn-27/artex/config"
 	"github.com/Autumn-27/artex/db"
 	"github.com/Autumn-27/norma/permission"
 	actool "github.com/Autumn-27/norma/tool"
@@ -738,6 +739,155 @@ func (s *Server) upgradeReporterTriggerMessage() {
 const reporterAgentName = "보고서 작성"
 const reporterAgentDescription = "취약점 상세 보고서 작성: 취약점을 발견하면 자동으로 트리거되어, 증거와 실행 과정을 조회한 뒤 Markdown 보고서를 작성해 해당 취약점에 기록합니다."
 
+// reporter(와 retester)의 중국어 표시 라벨. 중국어 UI 로 빌드한 배포에서는 위 한국어
+// 라벨이 화면에 그대로 나가 어색하므로, 런타임 locale(config.Locale)에 따라 고른다.
+// 이것도 순수 UI 라벨이라 번역해도 두뇌 입력에는 닿지 않는다(위 주석과 같은 근거).
+const reporterAgentNameZh = "报告撰写"
+const reporterAgentDescriptionZh = "撰写漏洞详细报告：发现漏洞时自动触发，查阅证据与执行过程后生成 Markdown 报告并记录到该漏洞。"
+
+// reporterAgentLabels 는 런타임 locale 에 맞는 reporter 표시 라벨을 돌려준다.
+func reporterAgentLabels() (name, desc string) {
+	if config.Locale() == "zh" {
+		return reporterAgentNameZh, reporterAgentDescriptionZh
+	}
+	return reporterAgentName, reporterAgentDescription
+}
+
+// reporterAgentNameZhLegacy 는 677bc23(F35, reporter 한국어화) **이전**의 중국어 기본
+// 설명이다. 이름(报告撰写)은 지금도 같지만 설명 문구가 그때 바뀌었으므로, 그 시절에
+// 시드된 DB 를 "사용자가 손대지 않은 기본값"으로 알아보려면 이 값이 필요하다
+// (below seedAgentLocalizers 의 known 집합).
+const reporterAgentDescriptionZhLegacy = "漏洞详细报告撰写：发现漏洞时自动触发，查取证据与执行过程后写 Markdown 报告并回写。"
+
+// seedAgentLabel 은 한 에이전트의 기본 표시 라벨 한 벌(name, desc)이다.
+type seedAgentLabel struct{ name, desc string }
+
+// seedAgentLocalizer 는 한 에이전트의 "역대 기본 라벨"과 현재 locale 의 목표 라벨을 담는다.
+//
+// known 에는 그 에이전트가 지금까지 **기본값으로** 써 온 모든 (이름, 설명) 조합이 들어간다
+// (중국어 원문·한국어판, 그리고 중간에 문구가 바뀐 이력까지). 현재 DB 값이 이 집합에
+// 있으면 "사용자가 손대지 않았다"는 뜻이므로 목표값으로 맞춰도 안전하고, 집합에 없으면
+// 사용자가 UI 에서 고친 것이므로 건드리지 않는다.
+//
+// 이렇게 집합으로 두는 이유: 초기 구현은 항목을 하나씩 늘어놓고 "이 항목의 기본값과 같으면
+// 갱신"으로 판정했는데, (a) 목표값과 비교하는 실수로 뒤 항목이 통째로 건너뛰어졌고,
+// (b) 이름과 설명의 이력이 서로 다르게 바뀐 조합(예: 이름만 번역되고 설명은 아직 원문)을
+// 표현할 수 없었다. 집합이면 두 문제가 모두 사라진다.
+type seedAgentLocalizer struct {
+	key     string
+	known   []seedAgentLabel
+	current func() (string, string)
+}
+
+func seedAgentLocalizers() []seedAgentLocalizer {
+	return []seedAgentLocalizer{
+		{
+			key: "reporter",
+			known: []seedAgentLabel{
+				{reporterAgentNameZh, reporterAgentDescriptionZh},
+				{reporterAgentNameZh, reporterAgentDescriptionZhLegacy},
+				{reporterAgentName, reporterAgentDescription},
+			},
+			current: reporterAgentLabels,
+		},
+		{
+			key: "retester",
+			known: []seedAgentLabel{
+				{retesterAgentNameZh, retesterAgentDescriptionZh},
+				{retesterAgentName, retesterAgentDescription},
+			},
+			current: retesterAgentLabels,
+		},
+	}
+}
+
+// localizeSeedAgentNames 는 시드된 에이전트의 **표시 이름·설명**을 런타임 locale 에 맞춘다.
+//
+// 왜 필요한가: reporter·retester 라벨은 시드 시점에 문자열로 DB 에 들어가고, 시드는 각각
+// `reporter_agent_seed_v1`·`finding_retester_seed_v1` 플래그로 **한 번만** 돈다. 그래서
+// ① 이미 설치된 인스턴스는 언어를 바꿔도 이름이 그대로 남고, ② 반대로 이름을 매 기동마다
+// 덮어쓰면 사용자가 UI 에서 고친 이름을 잃는다. 이 함수는 그 사이를 잡는다 —
+// **현재 값이 그 에이전트의 역대 기본값 중 하나일 때만**(= 사용자가 손대지 않았을 때만)
+// 새 locale 값으로 바꾸고, 사용자가 고친 이름은 건드리지 않는다.
+//
+// 설정 키 `seed_agent_names_locale` 에 마지막으로 적용한 locale 을 남겨, 언어가 바뀌지
+// 않았으면 아무 일도 하지 않는다(멱등). 사용자가 UI 에서 이름을 바꾼 뒤에는 그 키가 이미
+// 현재 locale 이라 다시 덮어쓰지 않는다.
+func (s *Server) localizeSeedAgentNames() {
+	const flag = "seed_agent_names_locale"
+	locale := config.Locale()
+	// 플래그만 보고 건너뛰면 안 된다. 예전 구현이 **이름을 바꾸지 못하고도** 플래그를
+	// 남긴 적이 있어(목표값 비교 버그), 그때 만들어진 DB 는 플래그가 현재 locale 인데
+	// 실제 이름은 다른 언어로 남아 있다. 그래서 "플래그가 같고 + 실제 상태도 목표와
+	// 일치"일 때만 건너뛴다 — 어긋나면 다시 맞춘다.
+	if v, _, _ := s.m.pg.GetSetting(flag); v == locale && s.seedAgentNamesMatch(locale) {
+		return
+	}
+	updated := 0
+	for _, l := range seedAgentLocalizers() {
+		a, err := s.m.pg.GetAgentByKey(l.key)
+		if err != nil || a == nil {
+			continue
+		}
+		// 사용자가 고친 이름·설명은 보존한다: 현재 값이 역대 기본값 집합에 없으면 손대지 않는다.
+		isDefault := false
+		for _, k := range l.known {
+			if a.Name == k.name && a.Description == k.desc {
+				isDefault = true
+				break
+			}
+		}
+		if !isDefault {
+			continue
+		}
+		name, desc := l.current()
+		if a.Name == name && a.Description == desc {
+			continue // 이미 목표 언어다(예: 기본값이 곧 현재 locale)
+		}
+		if err := s.m.pg.UpdateAgentMeta(l.key, name, desc); err != nil {
+			log.Printf("[i18n] %s 표시 이름 현지화 실패: %v", l.key, err)
+			continue
+		}
+		updated++
+	}
+	// 실패해도 플래그를 남기지 않는다 — 다음 기동에서 다시 시도하는 편이, 조용히 한국어
+	// 이름이 남는 것보다 낫다.
+	if err := s.m.pg.SetSetting(flag, locale); err != nil {
+		log.Printf("[i18n] seed 이름 locale 플래그 저장 실패: %v", err)
+		return
+	}
+	if updated > 0 {
+		log.Printf("[i18n] 시드 에이전트 표시 이름 %d건을 %s 로 맞췄습니다", updated, locale)
+	}
+}
+
+// seedAgentNamesMatch 는 "손대지 않은 기본값"인 에이전트들이 모두 현재 locale 의 목표
+// 라벨과 일치하는지 본다. 사용자가 고친 이름은 검사 대상이 아니다(그건 원래 보존 대상).
+// 존재하지 않는 에이전트(사용자가 삭제)도 통과로 본다.
+func (s *Server) seedAgentNamesMatch(locale string) bool {
+	for _, l := range seedAgentLocalizers() {
+		a, err := s.m.pg.GetAgentByKey(l.key)
+		if err != nil || a == nil {
+			continue
+		}
+		isDefault := false
+		for _, k := range l.known {
+			if a.Name == k.name && a.Description == k.desc {
+				isDefault = true
+				break
+			}
+		}
+		if !isDefault {
+			continue // 사용자가 고친 것 — 보존 대상이므로 불일치로 보지 않는다
+		}
+		name, desc := l.current()
+		if a.Name != name || a.Description != desc {
+			return false
+		}
+	}
+	return true
+}
+
 // seedReporterAgent 预置一个「보고서 작성」自定义 agent(builtin=false，可在 UI 编辑/删除)：
 // 绑定 update_finding_report + 任务查询工具，并挂一个「report_finding 被调用即触发」的
 // 触发器 —— 每登记一个漏洞就唤起它写详细报告。一次性(settings flag 守卫)：用户删掉后不再重建。
@@ -752,7 +902,8 @@ func (s *Server) seedReporterAgent() {
 	if exist, _ := s.m.pg.GetAgentByKey("reporter"); exist != nil {
 		return // key 已被占用(用户手建过)——不覆盖
 	}
-	a, err := s.m.pg.CreateAgent("reporter", reporterAgentName, reporterAgentDescription)
+	name, desc := reporterAgentLabels()
+	a, err := s.m.pg.CreateAgent("reporter", name, desc)
 	if err != nil {
 		log.Printf("[reporter] 创建 agent 失败: %v", err)
 		return
@@ -785,7 +936,7 @@ func (s *Server) seedReporterAgent() {
 	}); err != nil {
 		log.Printf("[reporter] 创建触发器失败: %v", err)
 	}
-	log.Printf("[reporter] 「%s」 agent + finding 트리거 사전 구성", reporterAgentName)
+	log.Printf("[reporter] 「%s」 agent + finding 트리거 사전 구성", name)
 }
 
 // seedAutoReportFindingBinding adds "auto" to report_finding's binding ONCE so

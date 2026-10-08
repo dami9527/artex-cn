@@ -108,6 +108,26 @@ func Load() Config {
 	return c
 }
 
+// Locale 은 UI 표시 언어를 정한다(기본 "ko").
+//
+// 웹 UI 의 locale 은 정적 내보내기 시점에 HTML 에 박히므로(web/src/i18n/config.ts 의
+// NEXT_PUBLIC_LOCALE) 서버가 알 수 없다. 그런데 서버가 **DB 에 시드하는 표시 이름**
+// (reporter·retester 같은 내장 agent 이름)도 화면에 그대로 나가므로, 런타임 언어를
+// 별도로 받아야 한다. 배포 스크립트(build-image.sh)가 빌드한 locale 을 그대로
+// ARTEX_LOCALE 로 넘겨 두 값이 어긋나지 않게 한다.
+//
+// 지원 값은 "ko"·"zh" 이며, 그 밖의 값이나 미설정은 기본 "ko"(이 저장소는 한국어판).
+// 시드 이름은 한 번만 들어가므로, 값을 바꾼 뒤에는 재기동이 필요하다(이미 만들어진
+// agent 는 사용자가 UI 에서 고쳤을 수 있어 덮어쓰지 않는다).
+func Locale() string {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("ARTEX_LOCALE"))) {
+	case "zh":
+		return "zh"
+	default:
+		return "ko"
+	}
+}
+
 // SkillDir returns the skill root directory with precedence:
 //
 //	env ARTEX_SKILL_DIR  >  config file (skill_dir)  >  BaseDir()/skills

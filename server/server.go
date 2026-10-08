@@ -289,6 +289,9 @@ func New(ctx context.Context, m *Manager, skillDir string, dataDir string, keyDi
 		if err := s.seedFindingRetester(); err != nil {
 			log.Printf("[retester] seed: %v", err)
 		}
+		// 시드된 에이전트의 표시 이름을 런타임 locale 에 맞춘다(멱등). 시드는 1회만 돌아
+		// 언어를 바꿔도 이름이 남으므로, 여기서 "기본값 그대로인 것"만 다시 맞춘다.
+		s.localizeSeedAgentNames()
 		go s.evidenceStore().RunGC(s.ctx)
 		s.seedPythonInterpreter()     // 自定义脚本工具:开机检测 python 解释器入库(仅空时)
 		go newScheduler(s).Run(s.ctx) // P3 触发器调度(定时/finding/目标事件),仅自定义 agent

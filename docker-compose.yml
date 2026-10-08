@@ -35,6 +35,10 @@ services:
       ARTEX_LLM_MODEL: ${ARTEX_LLM_MODEL:-}
       ARTEX_LLM_BASE_URL: ${ARTEX_LLM_BASE_URL:-}
       ARTEX_LLM_PROXY: ${ARTEX_LLM_PROXY:-}
+      # UI 언어와 **같은 값**이어야 한다. 웹 UI 의 locale 은 정적 내보내기 시점에 HTML 에
+      # 박혀 서버가 알 수 없으므로, 서버가 DB 에 시드하는 표시 이름(reporter 등)의 언어는
+      # 이 런타임 값으로 정한다. build-image.sh 가 --locale 값을 그대로 채워 준다.
+      ARTEX_LOCALE: ${ARTEX_LOCALE:-ko}
     ports:
       - "8787:8787"
       - "127.0.0.1:8788:8788"
