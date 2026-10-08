@@ -189,7 +189,7 @@ function JudgeCard() {
 
   // 사용을 켠 뒤(첫 로드에서 스위치가 true 로 읽힌 경우 포함) 승인 사용량 통계를 가져옵니다.
   React.useEffect(() => {
-    if (cfg.enabled) loadUsage();
+    if (cfg.enabled) void loadUsage();
   }, [cfg.enabled, loadUsage]);
 
   function patch(p: Partial<JudgeConfig>) {

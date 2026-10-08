@@ -8,6 +8,14 @@ The upstream ARTEX project's per-version release history (0.3.x and earlier) and
 
 ## [Unreleased] · Korean edition changes
 
+### Upstream sync (v0.3.15)
+
+Three upstream commits made after this fork's branch point (upstream `d003372`, 2026-10-03) have been brought into this repository. All three landed after that point, so merge conflicts were confined to files the localization had already touched; those spots were resolved to the Korean edition's conventions as described below.
+
+- **Model-fallback approvals now meter their token usage separately** ([`db/llm_usage.go`](db/llm_usage.go), `server/intercept.go`). Approval calls previously had no independent accounting, so there was no way to tell what they cost. They are now metered under `worker=judge`, and a usage card (call count, input, output, cache read, cache write, plus a 30-day daily bar chart) sits under the "Model fallback approval" switch in System → Intercept. Upstream hardcoded this card's strings in Chinese; this repository added `interceptPage.judgeUsage.*` keys to `web/messages/ko.json` and `zh.json` so the card goes through the same i18n path as the rest of the UI (the Chinese originals are kept in `zh.json` for comparison).
+- **The auth-initialization fail-open path is closed** (upstream `a951e4a`; `server/auth.go`, `db/settings.go`). Treating a failed password read as "not configured" let an unauthenticated request overwrite an already-set admin password. Failed reads now return 503, first-time-only semantics rest on the primary-key constraint (`INSERT ... ON CONFLICT DO NOTHING`) instead of an upsert, and password-length validation (at least 8 characters, bcrypt's 72-byte ceiling) is enforced server-side. The Korean edition translated the new error strings and validation messages, and added the setup screen's "cannot confirm" state strings as `auth.setup.*` keys.
+- **Upstream `v0.3.15`'s change history is reflected in [`CHANGELOG.zh.md`](CHANGELOG.zh.md).** Upstream's release commit does not fit this repository's split changelog layout, so instead of cherry-picking it verbatim, the entries that sat under `[Unreleased]` were rolled into a `## [0.3.15] - 2026-10-07` section with the original Chinese text preserved.
+
 ### Localization (i18n)
 
 - **Forced user-facing output into Korean.** The benchmarked agent's behavioral-instruction body (the "brain") is left in its original language to preserve performance, and a code-level fixed segment (`langDirective`) instructs the agent to write only the user-facing output (vulnerability reports, fact summaries, final summaries, chat replies) in Korean. Commands, payloads, code, and raw logs are kept in their original form.
