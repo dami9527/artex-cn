@@ -40,7 +40,12 @@ update_docker(){
 
   # 构建（前端 → 内嵌 → Linux 二进制）与语言判定都交给 build-image.sh。
   # 语言没变就不重建；变了就用新语言重建后再启动。
-  ./build-image.sh
+  # 本仓库不拉取任何预发布镜像：上游镜像 autumn27/artex 已从 Docker Hub 下架，
+  # 因此「更新」= 用当前源码重新构建镜像（发布 CI 另有 ghcr.io/dami9527/artex-cn 的镜像）。
+  if ! ./build-image.sh; then
+    warn "镜像构建或启动失败（请检查网络、Docker 环境，以及 dist/ 下是否已有 Linux 二进制）"
+    die "镜像更新失败。也可以用「2) 本地更新（用 go 重新编译）」更新"
+  fi
 }
 
 # ── ② 本地编译更新 ──────────────────────────────

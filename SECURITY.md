@@ -40,7 +40,7 @@
 
 本仓库是志愿维护的 **ARTEX 中文本地化版本**。安全修复以**最新默认分支**为准提供，
 不保证向历史版本回溯移植。若漏洞与本仓库的改动无关、属于上游（upstream）代码本身，
-建议同时报告到 [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX)。
+建议同时报告到 [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX)（当前无法访问，2026-10 核实）。
 
 ## 不属于受理范围的报告
 

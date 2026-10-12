@@ -1,6 +1,6 @@
 // Centralised status → color semantics, reused across the whole app.
 // Spec §8.3: 意图 / 覆盖 / 任务 / 严重度 each have a consistent color set.
-// User-facing labels live in the "status" message namespace (ko/zh); the maps
+// User-facing labels live in the "status" message namespace (zh/en/es); the maps
 // here only carry the color tone, keyed by the same status value.
 
 export type Tone = "neutral" | "blue" | "green" | "amber" | "red" | "rose" | "violet" | "slate";

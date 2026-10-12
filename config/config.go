@@ -28,6 +28,65 @@ type Database struct {
 type Config struct {
 	Database Database `json:"database"`
 	SkillDir string   `json:"skill_dir"`
+	// Language 是面向用户输出语言的引导默认值（"en"/"zh"/"es"），为空时取
+	// DefaultLanguage。运行期以 settings 表中由用户在界面上选定的值为准，覆盖此处。
+	Language string `json:"language"`
+}
+
+// SupportedLanguages 列出 artex-cn 可切换的面向用户输出语言。agent 输出、界面文案
+// 与后端消息都以这些代码为键。
+var SupportedLanguages = []string{"en", "zh", "es"}
+
+// DefaultLanguage 是未做任何配置时的开箱默认语言。artex-cn 默认中文；英语与西班牙语
+// 可通过语言设置（以及 ARTEX_LANG）在运行期切换。
+const DefaultLanguage = "zh"
+
+// NormalizeLanguage lower-cases and validates a language code, returning "" when
+// the code is empty or unsupported (so callers can fall through to the next source).
+func NormalizeLanguage(code string) string {
+	code = strings.ToLower(strings.TrimSpace(code))
+	for _, c := range SupportedLanguages {
+		if c == code {
+			return c
+		}
+	}
+	return ""
+}
+
+// CurrentLanguage 由服务器注入，返回运行期选定（settings 表）并叠加在引导默认值
+// 之上的当前面向用户输出语言。后端展示用文案（枚举标签等）一律经 ActiveLanguage
+// 读取，它就是唯一来源。为 nil（单元测试／独立运行）时 ActiveLanguage 回落到 "zh"，
+// 这样本地化黄金测试不必每条都显式钉住语言。
+var CurrentLanguage func() string
+
+// ActiveLanguage 解析后端展示文案所用的语言。优先级：服务器注入的运行时钩子
+// （settings 表）高于未注入时的 "zh" 回落值。生产环境总会注入 CurrentLanguage，
+// 因此全新部署会经该钩子解析到配置的默认值（DefaultLanguage = "zh"）；"zh" 回落值
+// 只在钩子缺失（单元测试／独立运行）时生效。
+func ActiveLanguage() string {
+	if CurrentLanguage != nil {
+		if v := NormalizeLanguage(CurrentLanguage()); v != "" {
+			return v
+		}
+	}
+	return "zh"
+}
+
+// Language resolves the default user-facing output language with precedence:
+//
+//	env ARTEX_LANG  >  config file (language)  >  DefaultLanguage
+//
+// This is the bootstrap default only. The runtime value a user picks in the UI is
+// stored in the settings table and takes precedence over this — the server layers
+// the two and wires the result into the agent and message catalogs.
+func Language() string {
+	if v := NormalizeLanguage(os.Getenv("ARTEX_LANG")); v != "" {
+		return v
+	}
+	if v := NormalizeLanguage(Load().Language); v != "" {
+		return v
+	}
+	return DefaultLanguage
 }
 
 // BaseDir is the directory that anchors all runtime artifacts (config.json and
@@ -108,21 +167,19 @@ func Load() Config {
 	return c
 }
 
-// Locale 返回 UI 显示语言，本仓库固定为简体中文，因此一律返回 "zh"。
+// Locale 返回 UI 显示语言，等同 ActiveLanguage()：运行期由用户在设置里选的
+// 语言优先，其次是 ARTEX_LOCALE / 配置文件的 language 字段，最后回落到默认的
+// "zh"。
 //
-// 取值口径只有 "zh"：ARTEX_LOCALE 设成什么（含未设置）都回落到 "zh"，
-// 不存在 ko 分支。
+// 为什么需要单独一个入口：web UI 的 locale 由客户端决定（web/src/i18n/config.ts
+// 的 LOCALE_STORAGE_KEY），而服务器**写入 DB 的显示名称**（reporter、retester
+// 这类内置 agent 名）同样显示在界面上，需要跟随同一个语言。部署脚本把构建时的
+// locale 经 ARTEX_LOCALE 传进来，避免两处取值不一致。
 //
-// web UI 的 locale 在静态导出时就写死进 HTML（web/src/i18n/config.ts 的
-// NEXT_PUBLIC_LOCALE），服务器无从得知。而服务器**写入 DB 的显示名称**
-// （reporter、retester 这类内置 agent 名）同样会显示在界面上，所以运行时语言
-// 需要单独获取。部署脚本（build-image.sh）把构建时的 locale 原样通过
-// ARTEX_LOCALE 传进来，避免两处取值不一致。
-//
-// 种子名称只写入一次，改值后需要重启（已创建的 agent 可能被用户在 UI 中改过，
-// 不覆盖）。
+// 种子名称只在语言变化时对齐一次，并且只覆盖仍是历代默认值的那些（用户在 UI 中
+// 改过的名称不动）。
 func Locale() string {
-	return "zh"
+	return ActiveLanguage()
 }
 
 // SkillDir returns the skill root directory with precedence:
@@ -153,16 +210,16 @@ func SkillDir() string {
 // DSN came from (for startup logging).
 func PostgresDSN() (dsn, source string, err error) {
 	if v := strings.TrimSpace(os.Getenv("ARTEX_PG_DSN")); v != "" {
-		return v, "环境变量 ARTEX_PG_DSN", nil
+		return v, trCfg("环境变量 ARTEX_PG_DSN"), nil
 	}
 	db := Load().Database
 	if d := strings.TrimSpace(db.DSN); d != "" {
-		return d, "配置文件 " + Path() + " (database.dsn)", nil
+		return d, fmt.Sprintf(trCfg("配置文件 %s (database.dsn)"), Path()), nil
 	}
 	if db.Host != "" || db.DBName != "" || db.User != "" {
-		return db.buildDSN(), "配置文件 " + Path() + " (database 字段)", nil
+		return db.buildDSN(), fmt.Sprintf(trCfg("配置文件 %s (database 字段)"), Path()), nil
 	}
-	return "", "", fmt.Errorf("未找到数据库配置：环境变量 ARTEX_PG_DSN 未设置，且配置文件 %s 未提供 database（dsn 或 host/user/dbname）。请创建该配置文件或设置环境变量后重试", Path())
+	return "", "", fmt.Errorf(trCfg("未找到数据库配置：环境变量 ARTEX_PG_DSN 未设置，且配置文件 %s 未提供 database（dsn 或 host/user/dbname）。请创建该配置文件或设置环境变量后重试"), Path())
 }
 
 func (d Database) buildDSN() string {

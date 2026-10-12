@@ -72,3 +72,14 @@ agent/d2_models_live_test.go
 # API 密钥·机密：无论放在哪里都禁止提交
 *.env
 secrets.env
+
+# --- Windows 源码构建的本地残留产物：禁止提交 ---
+# go build -o artex.exe 产出的 Windows 单文件二进制（与 Unix 版的 /artex 对应）
+/artex.exe
+# 本地配置里写下的机密（例如 PostgreSQL 密码）。绝对不要提交。
+/.secrets/
+# 把 SWC_NATIVE_BINDING_CACHE 指到项目子目录时产生的原生绑定缓存
+/.swc-cache/
+# 前台运行 artex.exe 时重定向出来的运行日志
+/artex.out.log
+/artex.err.log

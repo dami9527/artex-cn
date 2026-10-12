@@ -38,7 +38,7 @@ user who runs it. This repository is provided "AS IS."
 ## Localization policy
 
 The reason this repository exists is to **preserve the original
-[Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX)'s judgment performance exactly while
+[Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX) (currently unreachable, checked 2026-10) judgment performance exactly while
 keeping the user-facing output in Simplified Chinese as this edition's default**. Contributions
 that depart from this policy can degrade performance, so we do not accept them.
 
@@ -53,8 +53,9 @@ that depart from this policy can degrade performance, so we do not accept them.
 - **Commands, payloads, code, URLs, and log text are not translated.** They are the originals
   needed for analysis, so they are left as is.
 - **The upstream Chinese original is preserved.** Documents keep it in `README.zh.md`, so that
-  changes in the upstream repository stay easy to compare against. The UI ships a single catalog,
-  `web/messages/zh.json`.
+  changes in the upstream repository stay easy to compare against. The UI ships three catalogs,
+  `web/messages/{zh,en,es}.json`, with `zh` the default (English and Spanish can be selected in the
+  settings).
 - When you add or change a UI string, do not hard-code it; add it as a key in the message file.
 - **No Korean may remain anywhere.** Everything in this repository — interface, comments,
   user-facing backend strings, prompts, documents, scripts and test assertions — is Simplified
@@ -162,6 +163,17 @@ npm run check        # Biome lint/format check (a merge gate: 0 errors required)
 npm run check:fix    # auto-fix
 ```
 
+If you do not have Node (version 20+) locally, or the installed native dependencies do not
+match your platform, you can verify the same way with Docker. Keeping `node_modules` in a named
+volume avoids clashing with your host's platform binaries (for example `@parcel/watcher` and
+Biome) and makes re-runs faster. This repository verifies web the same way as CI.
+
+```bash
+docker run --rm -v "$PWD":/src -w /src/web \
+  -v artexko-web-nm:/src/web/node_modules \
+  node:22 bash -c 'npm ci && npm run build:static'
+```
+
 Formatting and linting before commit are managed with Biome. `lint-staged` automatically runs
 `biome check --write` on staged files.
 
@@ -171,6 +183,8 @@ Formatting and linting before commit are managed with Biome. `lint-staged` autom
 cp .env.example .env     # set POSTGRES_PASSWORD
 docker compose up -d     # start artex + postgres → http://localhost:8787
 ```
+
+> On a fresh clone, run `./build-image.sh` once before the first `docker compose up -d`: compose uses the locally built image, so without `dist/<arch>/artex` it fails at the `COPY` step (see [README "Building the Chinese edition image locally"](README.en.md#building-the-chinese-edition-image-locally)).
 
 ---
 

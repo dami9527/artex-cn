@@ -25,6 +25,14 @@ PASS/FAIL 摘要，并且只要有一个失败就以非 0
 不再代表绿色的 CI。该自检不是第九个套件，而是一道门禁，因此
 不出现在下面的摘要里，检测套件仍然是八个。
 
+Two more gates run the same way — before the suite loop, out of the summary, and never counted as suites:
+the [host-triage tool](../triage/)'s `--self-test` ([`triage-selftest.sh`](triage-selftest.sh)) and the
+defense-template consistency check ([`check-defense-template.sh`](check-defense-template.sh)). The latter
+re-runs the facts the defense guide states about its inline Sigma correlation template (`sigma check`
+passes, it converts on splunk/eql/loki, lucene and kusto reject the correlation, and the Korean and English
+copies carry a byte-identical rule body); that template is prose outside the [`../sigma/`](../sigma/) rule
+tree, so no suite would otherwise catch it going stale against an upstream sigma-cli.
+
 ```sh
 detections/tests/run-all.sh
 ```

@@ -3,7 +3,7 @@
 [中文](MAINTAINING.md) · English
 
 This document lays out the procedure a **maintainer** follows to keep up with changes in the
-upstream repository [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX) while maintaining this
+upstream repository [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX) (currently unreachable, checked 2026-10) while maintaining this
 edition's Simplified-Chinese localization. Contribution scope, legal responsibility, and the
 localization policy live in
 [CONTRIBUTING.en.md](CONTRIBUTING.en.md); user-facing guidance lives in [README.en.md](README.en.md).
@@ -29,11 +29,11 @@ The deliverables fall into three groups.
 - **Assets kept in the original language** (section 2). Translating them breaks performance or the
   ability to diff against upstream.
 - **Output-language enforcement fixed in code.** `langDirective()` in `agent/prompt.go` appends to
-  the end of each role's system prompt the instruction "write user-facing output in Simplified
-  Chinese."
+  the end of each role's system prompt the instruction "write user-facing output in the current
+  display language" (Simplified Chinese by default here; the setting can switch it to English or Spanish).
 - **User-facing strings that are written in Simplified Chinese.** The UI lives in
-  `web/messages/zh.json`; the server's user-facing response strings live in named constants in each
-  Go file.
+  `web/messages/{zh,en,es}.json` (Simplified Chinese by default); the server's user-facing response
+  strings live in named constants in each Go file.
 
 ---
 
@@ -51,8 +51,9 @@ an upstream change touches these assets, **apply it as is, without translating**
   a single record serves two purposes. Each such trade-off is recorded in the commit message that
   introduced it; use `git log -S'<the string>'` to trace it.
 - **The upstream originals.** Documents keep the upstream Chinese original in `README.zh.md`, so
-  that diffing against upstream changes stays easy. The UI ships a single catalog,
-  `web/messages/zh.json`; there is no parallel translation file to keep in sync.
+  that diffing against upstream changes stays easy. The UI ships three catalogs,
+  `web/messages/{zh,en,es}.json`, with the Chinese original in `zh.json`, so all three must gain a new
+  key together.
 - **Command, payload, code, URL, identifier, and log originals.** These are the originals needed for
   analysis, so they are not translated. Go code comments are the lowest priority as well and stay in
   the original until the upstream diff is finished.
@@ -108,7 +109,8 @@ The classification criteria are as follows.
   check for **newly introduced user-facing strings** (`writeErr`, and the like) and write those as
   Simplified-Chinese constants.
 - If the UI (`web/src/**`) changed and introduced **new screen strings** → do not hard-code them;
-  add them to `web/messages/zh.json` under the same key.
+  add them to `web/messages/{zh,en,es}.json` under the same key (the default language is zh, so all
+  three catalogs need the new keys).
 - If **upstream indicators pinned by the detection rules** changed (the prober User-Agent in
   `enrich/enrich.go`, the self-update User-Agent in `selfupdate/`, the audit marker in
   `guard/guard.go`, the destructive-command deny list in `db/db.go`, the default listen and
@@ -142,8 +144,9 @@ After applying an upstream change or doing localization work, verify the followi
 
 ### 5.1 Message-catalog integrity and the no-Korean gate
 
-`web/messages/zh.json` is the only message catalog, so its keys must be exactly the ones the
-components request, and no value may still contain Hangul or an untranslated English literal. The
+`web/messages/{zh,en,es}.json` are the message catalogs, so their keys must be exactly the ones the
+components request (the default language is zh), and no value may still contain Hangul or an
+untranslated English literal. The
 repository-wide gate below covers the Hangul half mechanically.
 
 ```bash
@@ -358,20 +361,21 @@ git push origin v0.3.15
 
 ### 9.2 What the pipeline does
 
-The workflow is split into five jobs.
+The workflow is split into four jobs.
 
 - **frontend.** Statically exports the frontend once (`web/out`) and uploads that output as the
   `web-dist` artifact. The binaries job below downloads and reuses this output per target.
 - **binaries.** Cross-compiles five targets (linux amd64/arm64, darwin amd64/arm64, windows amd64) and
   packages a zip per target. On the linux amd64 binary it runs an `artex -h` smoke test to confirm the
   binary actually runs.
-- **release.** Gathers all zips, generates a `SHA256SUMS` checksum file, and creates a GitHub Release
-  with the zips and the checksum attached.
-- **docker-gate.** Checks whether the `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` secrets are set and passes
-  that result on as the run condition for the next job.
-- **docker.** Runs only when those secrets exist; it takes the linux binaries cross-compiled by
-  binaries, builds a multi-architecture image, and pushes it to Docker Hub. When the secrets are
-  absent it is skipped, so the release CI finishes with just the binary release and no red failure.
+- **release.** Gathers all zips, generates a `SHA256SUMS` checksum file (`sha256sum -- *.zip`, with
+  `--` terminating option parsing), and creates a GitHub Release with the zips and the checksum
+  attached.
+- **docker.** Takes the linux binaries cross-compiled by binaries, builds a multi-architecture
+  (amd64/arm64) image, and pushes it to GitHub Container Registry as `ghcr.io/dami9527/artex-cn`
+  (this repository's own namespace) with the release tag and `latest`. It logs in with the workflow's
+  built-in `GITHUB_TOKEN` (job permission `packages: write`), so no extra secrets are needed; the
+  job's first step aborts early when the namespace is empty or still an upstream placeholder (see 9.4).
 
 ### 9.3 Do the build assumptions match the repository structure
 
@@ -392,12 +396,21 @@ current repository structure by reproducing the binaries job locally.
   that buildx fills in per platform during a multi-architecture build. [`.dockerignore`](.dockerignore)
   does not exclude `dist/`, so the binary is included in the build context.
 
-### 9.4 Still a pending decision: the Docker image namespace
+### 9.4 The Docker image namespace
 
-The docker job currently leaves the image name as upstream's `autumn27/artex`, and which namespace this
-fork should publish under is still a pending decision. Until that is
-decided, the Docker Hub secrets are not set, and in the meantime a release publishes only the binary
-zips and the checksum (the docker job is skipped).
+Images are published to `ghcr.io/dami9527/artex-cn`, a namespace this repository owns; the namespace
+lives in one place, the docker job's `env.IMAGE_NAMESPACE` in `release.yml`. A guard step aborts
+before the build when that value is empty or is still an upstream/other-fork placeholder
+(`autumn27/artex`, `jiwoochris/artex-ko`, `ghcr.io/jiwoochris/artex-ko`), so the pipeline fails fast
+instead of logging in successfully and only failing at the final push with `denied`. Upstream's
+`autumn27/artex` has been taken down from Docker Hub and this repository has no push access to it, so
+it is no longer used.
+
+`docker-compose.yml` still builds locally from the Dockerfile by default
+(`${ARTEX_IMAGE:-artex-cn:local}`) and never pulls a pre-published image; the published GHCR image is
+there for deployments that want to pull it directly. A GHCR package may be created as private on its
+first publish, so after the first release check in the package settings that it is public; while it
+is private, starting from that image fails to pull with an authentication error.
 
 ### 9.5 Verifying locally without a tag
 

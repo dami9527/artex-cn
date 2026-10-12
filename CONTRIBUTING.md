@@ -33,9 +33,9 @@ ARTEX 是让 LLM 多智能体**自主**执行渗透测试的攻击安全工具�
 
 ## 本地化方针
 
-本仓库存在的意义，是在保留上游 [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX)
-**判断性能**的前提下，把面向用户的产出统一为**简体中文**。偏离这一方针的改动可能降低性能，
-因此不予接受。
+本仓库存在的意义，是在保留上游 [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX)（当前无法访问，2026-10 核实）
+**判断性能**的前提下，把面向用户的产出默认统一为**简体中文**（界面与输出可在设置里切换到英语或
+西班牙语）。偏离这一方针的改动可能降低性能，因此不予接受。
 
 - **不要翻译 agent 的内部推理提示词（行为指令正文）。** 必须保留按原文（中文）基准测试过的
   行为。该正文位于 `agent/promptcatalog.go` 与数据库种子（`agent_prompts`）。翻译会让 agent
@@ -45,7 +45,7 @@ ARTEX 是让 LLM 多智能体**自主**执行渗透测试的攻击安全工具�
   `langDirective()` 的代码固定尾段追加到各角色 system 提示词末尾。要改输出语言就改这个函数。
 - **命令、payload、代码、URL、日志原文不翻译。** 它们是分析所需的原始材料，保持原样。
 - **保留上游中文原文。** 文档把原文留在 `README.zh.md`，便于与上游（upstream）仓库的变更
-  对照。界面文案集中在 `web/messages/zh.json`。
+  对照。界面文案集中在 `web/messages/{zh,en,es}.json`（默认 `zh`，可在设置里切到英语或西班牙语）。
 - UI 文案不要硬编码，按消息文件的键添加。
 - **仓库里不允许出现韩文。** 本仓库曾经是韩文版，界面、注释、后端文案、提示词、文档、脚本
   与入库数据都被翻译过一遍。为避免回退，仓库把这条约束固化成了可执行检查
@@ -54,7 +54,7 @@ ARTEX 是让 LLM 多智能体**自主**执行渗透测试的攻击安全工具�
   只要任何一行还有谚文就失败。提交前请运行 `python3 -I scripts/check-no-korean.py`；
   需要修改检测范围时改脚本本身（不要用豁免清单绕过）。提交信息同样一律用简体中文书写。
 - **输出语言强制是提示词引导，而不是硬性固定。** `langDirective()` 只是**指示**输出语言为
-  简体中文，并不强制固定。所以中文的忠实度取决于模型能力、角色与上下文。验证本地化改动时，
+  当前显示语言（默认简体中文），并不强制固定。所以中文的忠实度取决于模型能力、角色与上下文。验证本地化改动时，
   请使用能力足够的模型（前沿级）。低价、小模型可能让报告与摘要退回原文，因此不要只凭低价模型
   的输出判断本地化是否生效。使用 OpenAI 系列模型时 `max_tokens` 的设置陷阱整理在
   [README 的「模型选择与输出语言」一节](README.md#模型选择与输出语言)。
@@ -143,6 +143,16 @@ npm run check        # Biome 检查与格式化（已是合并门禁，必须 0 
 npm run check:fix    # 自动修复
 ```
 
+本地没有 Node（要求 20+），或装好的原生依赖与当前平台不匹配时，可以用 Docker 做同样的验证。
+把 `node_modules` 放在具名卷（named volume）里，既能避免与宿主机平台的二进制（例如
+`@parcel/watcher`、Biome）互相污染，重跑也更快。本仓库的 web 验证与 CI 走的就是这种方式。
+
+```bash
+docker run --rm -v "$PWD":/src -w /src/web \
+  -v artexcn-web-nm:/src/web/node_modules \
+  node:22 bash -c 'npm ci && npm run build:static'
+```
+
 提交前的格式化与检查由 Biome 管理。`lint-staged` 会对暂存的文件自动执行
 `biome check --write`。
 
@@ -152,6 +162,8 @@ npm run check:fix    # 自动修复
 cp .env.example .env     # 设置 POSTGRES_PASSWORD
 docker compose up -d     # 启动 artex + postgres → http://localhost:8787
 ```
+
+> 首次在全新 clone 里跑 compose 之前，需要先执行一次 `./build-image.sh`（compose 用的是本地构建出的镜像，缺少 `dist/<arch>/artex` 时会在 `COPY` 处失败；见 [README「自行构建中文版镜像」](README.md#自行构建中文版镜像)）。
 
 ---
 

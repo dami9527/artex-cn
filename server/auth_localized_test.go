@@ -56,18 +56,23 @@ func TestRequireAuthMessagesLocalized(t *testing.T) {
 // (= 要经 pg 的)处理器文案，也能在没有 DB 时抓住回归。
 func TestAuthErrorConstantsLocalized(t *testing.T) {
 	consts := map[string]string{
-		"authErrUnauthorized":         authErrUnauthorized,
-		"authErrTokenInvalid":         authErrTokenInvalid,
-		"authErrPasswordAlreadySet":   authErrPasswordAlreadySet,
-		"authErrPasswordEmpty":        authErrPasswordEmpty,
-		"authErrNewPasswordEmpty":     authErrNewPasswordEmpty,
-		"authErrPasswordHash":         authErrPasswordHash,
-		"authErrSaveFailedPrefix":     authErrSaveFailedPrefix,
-		"authErrTokenGen":             authErrTokenGen,
-		"authErrBadRequest":           authErrBadRequest,
-		"authErrPasswordNotInit":      authErrPasswordNotInit,
-		"authErrCurrentPasswordWrong": authErrCurrentPasswordWrong,
-		"authErrBadCredential":        authErrBadCredential,
+		"authErrUnauthorized":          authErrUnauthorized,
+		"authErrTokenInvalid":          authErrTokenInvalid,
+		"authErrPasswordAlreadySet":    authErrPasswordAlreadySet,
+		"authErrPasswordEmpty":         authErrPasswordEmpty,
+		"authErrNewPasswordEmpty":      authErrNewPasswordEmpty,
+		"authErrPasswordHash":          authErrPasswordHash,
+		"authErrSaveFailedPrefix":      authErrSaveFailedPrefix,
+		"authErrTokenGen":              authErrTokenGen,
+		"authErrBadRequest":            authErrBadRequest,
+		"authErrPasswordNotInit":       authErrPasswordNotInit,
+		"authErrCurrentPasswordWrong":  authErrCurrentPasswordWrong,
+		"authErrBadCredential":         authErrBadCredential,
+		"authErrPasswordTooShort":      authErrPasswordTooShort,
+		"authErrSetupTokenInvalid":     authErrSetupTokenInvalid,
+		"authErrTooManyAttempts":       authErrTooManyAttempts,
+		"authErrPasswordTooLong":       authErrPasswordTooLong,
+		"authErrDataSourceUnavailable": authErrDataSourceUnavailable,
 	}
 	for name, msg := range consts {
 		assertChineseError(t, name, msg)

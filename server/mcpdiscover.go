@@ -55,7 +55,7 @@ func connectMCP(ctx context.Context, m *db.MCPServer) (mcpClient, error) {
 		}
 		return mcphttp.NewSSE(ctx, m.Name, m.URL, jsonStrMap(m.Env), m.Insecure)
 	default:
-		return nil, fmt.Errorf(errMCPUnknownTransportFmt, m.Transport)
+		return nil, fmt.Errorf(trMsg(errMCPUnknownTransportFmt), m.Transport)
 	}
 }
 
@@ -78,7 +78,7 @@ func (s *Server) discoverAndCacheMCP(ctx context.Context, m *db.MCPServer) error
 	if err := s.m.pg.SaveMCPTools(m.ID, tools); err != nil {
 		return err
 	}
-	log.Printf("[mcp] %s 发现 %d 个工具并已缓存", m.Name, len(tools))
+	log.Printf(logT("[mcp] %s 发现 %d 个工具并已缓存"), m.Name, len(tools))
 	return nil
 }
 
@@ -89,7 +89,7 @@ func (s *Server) discoverAndCacheMCP(ctx context.Context, m *db.MCPServer) error
 func (s *Server) discoverEmptyMCPsOnStartup() {
 	servers, err := s.m.pg.ListMCP()
 	if err != nil {
-		log.Printf("[mcp] 启动自动发现: 读取列表失败: %v", err)
+		log.Printf(logT("[mcp] 启动自动发现: 读取列表失败: %v"), err)
 		return
 	}
 	for _, m := range servers {
@@ -98,7 +98,7 @@ func (s *Server) discoverEmptyMCPsOnStartup() {
 		}
 		ctx, cancel := context.WithTimeout(s.ctx, 90*time.Second)
 		if err := s.discoverAndCacheMCP(ctx, m); err != nil {
-			log.Printf("[mcp] 启动自动发现 %s 失败: %v", m.Name, err)
+			log.Printf(logT("[mcp] 启动自动发现 %s 失败: %v"), m.Name, err)
 		}
 		cancel()
 	}

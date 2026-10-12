@@ -4,6 +4,8 @@
 
 **An autonomous penetration-testing system driven by LLM multi-agents** (Go backend + Next.js frontend)
 
+The UI and generated output default to Simplified Chinese, and **can be switched to English or Spanish in Settings (System → Settings → Display language).** Changing the language also changes the language of agent-generated reports, summaries and chat replies.
+
 [中文](README.md) · English
 
 [![ci](https://github.com/dami9527/artex-cn/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dami9527/artex-cn/actions/workflows/ci.yml) [![detections](https://github.com/dami9527/artex-cn/actions/workflows/detections.yml/badge.svg?branch=main)](https://github.com/dami9527/artex-cn/actions/workflows/detections.yml) [![web](https://github.com/dami9527/artex-cn/actions/workflows/web.yml/badge.svg?branch=main)](https://github.com/dami9527/artex-cn/actions/workflows/web.yml) [![license: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
@@ -26,7 +28,7 @@
 
 ---
 
-> **This repository is a localized edition of the open-source project [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX) (AGPL-3.0), presented as the default Simplified-Chinese edition.** To preserve the agents' decision-making performance, the internal reasoning prompts are kept in the original language, and only the user-facing output (findings, summaries, reports, chat replies) is forced into Simplified Chinese. See ["Why a Chinese edition"](#why-a-chinese-edition) below for the rationale.
+> **This repository is a localized edition of the open-source project [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX) (AGPL-3.0 · upstream repository currently unreachable, checked 2026-10), presented as the default Simplified-Chinese edition.** To preserve the agents' decision-making performance, the internal reasoning prompts are kept in the original language, and only the user-facing output (findings, summaries, reports, chat replies) is forced into Simplified Chinese. See ["Why a Chinese edition"](#why-a-chinese-edition) below for the rationale.
 
 ARTEX is a system in which several LLM-driven agents autonomously run a penetration test: they **break goals down on their own, execute real tools, and accumulate discovered assets and vulnerabilities into a graph** as they go. A single Go binary ships with the Next.js frontend embedded, and all data is stored in PostgreSQL.
 
@@ -51,7 +53,7 @@ Full license terms, usage restrictions, and the disclaimer are in the [License a
 
 Upstream ARTEX already has Chinese prompts, UI, and documentation. This repository is maintained as the **default edition for Chinese-speaking users**, and aims to:
 
-- **Keep user-facing output in Simplified Chinese** — the findings, fact summaries, final reports, and chat replies that agents surface to a human are forced into Simplified Chinese. Commands, payloads, code, URLs, and raw logs are needed for analysis and are left in their original form.
+- **Keep user-facing output in Simplified Chinese by default** — the findings, fact summaries, final reports, and chat replies that agents surface to a human are written in the current "Display language", which defaults to Simplified Chinese here (English and Spanish can be selected in Settings). Commands, payloads, code, URLs, and raw logs are needed for analysis and are left in their original form.
 - **Preserve performance** — the internal reasoning prompts (the behavioral instruction body) that drive the agents' judgment are **not** translated. Behavior benchmarked in the original language is kept intact, and only the output language is enforced, avoiding the quality drift that translation introduces.
 - **State the legal boundaries** — the compliance notices on the Cybersecurity Law, the Data Security Law, and the Personal Information Protection Law, plus the "authorized scope only" warning, are provided clearly in Chinese.
 - **Support the local stack** — the LLM provider can be swapped from a frontier model to any OpenAI-compatible endpoint (domestic or open models). See [Configuration](#configuration).
@@ -91,7 +93,7 @@ The upstream (Chinese UI) screens are available in [`README.zh.md`](README.zh.md
 
 > **⚠️ `docker compose up -d` on its own will not start anything.** The `artex` service in `docker-compose.yml` used to pull `autumn27/artex`, and that image **disappeared from Docker Hub** when the original author closed the repository (a pull now returns `not found`). The only remaining path is to **build it yourself**, which also gets you this repository's Chinese edition. See [Building the Chinese edition image locally](#building-the-chinese-edition-image-locally) below.
 >
-> (This repository does not publish an image to Docker Hub, so `ARTEX_IMAGE` is used only as the tag of the image you build.)
+> (The release CI does publish multi-architecture images to this repository's own `ghcr.io/dami9527/artex-cn` on `v*` tags, but compose still builds locally by default and never pulls a pre-published image; `ARTEX_IMAGE` is used only as the tag of the image you build.)
 
 ```bash
 git clone https://github.com/dami9527/artex-cn.git
@@ -99,15 +101,18 @@ cd artex-cn
 cp .env.example .env          # set POSTGRES_PASSWORD; ANTHROPIC_API_KEY is optional
 ./build-image.sh              # ① frontend → ② binary → ③ build the Chinese edition image and bring it up (runs docker compose up -d --build internally)
 # → open http://localhost:8787 (on first visit, set the admin password at /setup)
+#   /setup asks for the setup token printed in the startup log: docker compose logs artex | grep '设置令牌'
 ```
 
-`./skills` and `./data` are bind-mounted to the host and survive container recreation.
+The image bundles common tools (ripgrep, curl, vim, npm, nmap, and more). `./skills` and `./data` are bind-mounted to the host and survive container recreation.
 
 ### UI and output language
 
-This repository is the **Chinese edition**: the UI language is fixed to Simplified Chinese (`zh`) and **there is no switch.** `LOCALES` in `web/src/i18n/config.ts` contains only `zh`, `NEXT_PUBLIC_LOCALE` is read at build time and falls back to `zh` for any other value, and the strings live in `web/messages/zh.json`.
+This repository is the **Chinese edition**: the UI language defaults to Simplified Chinese (`zh`) and **can be switched to English (`en`) or Spanish (`es`) in Settings** (`LOCALES` in `web/src/i18n/config.ts` holds exactly those three, with no Korean). The strings live in `web/messages/{zh,en,es}.json`; `NEXT_PUBLIC_LOCALE` only decides the language of the pre-rendered first page at build time, and the runtime value is whatever the user picks in Settings.
 
-> **Important: both the UI and the agent output are Simplified Chinese.** The language of the **vulnerability reports, fact summaries, final summaries and chat replies the agent writes is decided by Go code** (`langDirective()` in `agent/prompt.go` forces Simplified Chinese — that is this repository's design). Commands, payloads, code, URLs, and raw logs are needed for analysis and stay as they are.
+> **Important: user-facing output follows the "Display language".** The language of the **vulnerability reports, fact summaries, final summaries and chat replies the agent writes**, as well as server error messages and status labels, is driven by Go code according to the current display language (`langDirective()` in `agent/prompt.go`). Commands, payloads, code, URLs, and raw logs are needed for analysis and stay as they are, and the agent's behavioural-instruction body (the reasoning "brain") is left in its original language to preserve its benchmarked performance.
+
+> **Default output language.** Until someone picks a language in Settings, the server's default output language comes from `ARTEX_LANG` (or the `language` field in `config.json`), one of `en`/`zh`/`es`, empty meaning Simplified Chinese. Operator console logs follow only that value, regardless of the Settings choice.
 
 > **No-Korean gate.** The repository turns "no Korean may remain" into an executable check, `scripts/check-no-korean.py`: it scans the text files under the working tree (skipping `.git`, dependency directories such as `node_modules`, build output, and binaries) and exits non-zero if any line still contains Hangul. Run `python3 -I scripts/check-no-korean.py` to reproduce the check after a change.
 
@@ -183,7 +188,7 @@ docker compose restart artex
 
 Upstream provides several methods: an install script (`./install.sh`), precompiled binaries (Releases), and a single-binary build from source. The commands and full procedure are collected in the "安装" (Installation) section of [`README.zh.md`](README.zh.md#安装) (in Chinese); the essentials are reproduced below.
 
-- **Install script:** running `./install.sh` detects/installs Docker and then lets you choose "① all-in-Docker" or "② local compile and run." "① all-in-Docker" writes `.env`, calls `./build-image.sh` to build the image from the current source, and then runs `docker compose up -d --build`; it does **not** pull the vanished upstream image (`autumn27/artex`).
+- **Install script:** running `./install.sh` detects/installs Docker and then lets you choose "① all-in-Docker" or "② local compile and run." "① all-in-Docker" writes `.env`, calls `./build-image.sh` to build the image from the current source, and then runs `docker compose up -d --build`; it does **not** pull the vanished upstream image (`autumn27/artex`), and once it is up it points you at `docker compose logs artex | grep '设置令牌'` for the first-run setup token. "② local compile and run" compiles and runs it yourself as described below (listening on `127.0.0.1:8787` by default).
 - **Single-binary build from source:**
 
   ```bash
@@ -217,7 +222,7 @@ Upstream provides several methods: an install script (`./install.sh`), precompil
 
 **Concurrency:** the number of worker agents spawned per task is adjustable under "System settings" (default 3).
 
-**Common flags:** `./start.sh -addr :8787 -proxy :8788` — `-addr` is the frontend and API, `-proxy` is the traffic-recording proxy port.
+**Common flags:** `./start.sh -addr :8787 -proxy :8788` — `-addr` is the frontend and API, `-proxy` is the traffic-recording proxy port. `-addr` defaults to `127.0.0.1:8787` (local connections only); pass an explicit bind address such as `:8787` to serve other machines (see "First-run protection" below).
 
 ### Model selection and output language
 
@@ -228,6 +233,15 @@ Simplified Chinese for user-facing output is **driven by a prompt directive (`la
 - **Give reasoning models a generous `max_tokens`.** A reasoning model that uses a separate thinking channel can spend a small response-token budget entirely on internal reasoning and leave the user-facing final answer empty. Here the answer itself disappears rather than the language, so set that LLM profile's `max_tokens` high enough.
 
 > **Token-cap pitfall on the OpenAI-compatible path.** OpenAI-family models such as `gpt-4o` cap response tokens at 16,384. OpenAI-compatible requests, however, carry a larger default output cap (32,768), so leaving it unchanged makes every call fail with `400 (max_tokens is too large)`. In that case, **set that profile's `max_tokens` to 16,384 or lower on the LLM settings page.** Anthropic-family models (including the default `claude-opus-4-8`) allow 32,768 and do not hit this pitfall.
+
+### First-run protection (setup token and bind address)
+
+There is a single admin account (`ARTEX`) whose password is created on the first visit at `/setup`. So that whoever reaches a not-yet-initialised instance first cannot claim it, the following protections apply.
+
+- **Setup token.** When the server starts without a password it prints one line `[auth] … 设置令牌: …` (setup token) to the console (`docker compose logs artex` under Docker). `/setup` and `POST /api/auth/init` (`setup_token` field) only create the password when that value matches, and wrong attempts are rate-limited. For unattended deployments pin it with `ARTEX_SETUP_TOKEN`, or set the password directly with `ARTEX_ADMIN_PASSWORD` (8+ characters).
+- **Binds to 127.0.0.1 by default.** Both the `-addr` default of `artex` and the port publishing in `docker-compose.yml` open the loopback interface only. To reach it from other machines use `-addr :8787` or `ARTEX_BIND=0.0.0.0` in `.env`, but finish the initial setup first and prefer the reverse-proxy layout below. Starting without a password on a non-loopback address logs a warning.
+- **Changing the password ends every session.** The token signing key is bound to the password hash, so tokens issued before a change (from the UI, `reset-password.sh`, or a direct DB edit) stop working within seconds. When recovering from a compromised account, also review custom tools, MCP, LLM and notification settings after changing the password.
+- **CORS.** `/api` only answers cross-origin browser calls from origins listed in `ARTEX_CORS_ORIGINS` (comma-separated). The embedded UI is same-origin, so this is normally empty; the default only allows `next dev` from `dev.sh` (`http://localhost:5173`).
 
 ### Reverse-proxy deployment (HTTPS / expose only 443)
 
@@ -264,7 +278,7 @@ The full Nginx example is also in [`README.zh.md`](README.zh.md#反向代理部�
 
 ## System architecture
 
-ARTEX is an **autonomous penetration system driven by LLM multi-agents.** It uses a single Go backend (with the Next.js frontend embedded) over PostgreSQL, and the agent capabilities are provided by the [`norma`](https://github.com/Autumn-27/norma) SDK (`agentcore` / `tool` / `permission` / `harness` / `memory` / `transcript`). At its core is a **dual-graph structure** and the two autonomy mechanisms around it: process-level information exchange between workers, and the planner's multi-round shared todolist.
+ARTEX is an **autonomous penetration system driven by LLM multi-agents.** It uses a single Go backend (with the Next.js frontend embedded) over PostgreSQL, and the agent capabilities are provided by the [`norma`](https://github.com/Autumn-27/norma) (currently unreachable, checked 2026-10) SDK (`agentcore` / `tool` / `permission` / `harness` / `memory` / `transcript`). At its core is a **dual-graph structure** and the two autonomy mechanisms around it: process-level information exchange between workers, and the planner's multi-round shared todolist.
 
 ### Overall layers
 
@@ -506,7 +520,7 @@ This project is provided "AS IS" without any warranty, express or implied. The o
 
 ## Upstream project
 
-- Upstream repository: [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX)
+- Upstream repository: [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX) (currently unreachable, checked 2026-10)
 - Upstream README (Chinese original): [README.zh.md](README.zh.md)
-- Upstream online demo (Chinese UI): [https://artex-demo.vercel.app/](https://artex-demo.vercel.app/)
-- Agent SDK: [Autumn-27/norma](https://github.com/Autumn-27/norma)
+- Upstream online demo (Chinese UI): [https://artex-demo.vercel.app/](https://artex-demo.vercel.app/) (currently unreachable, checked 2026-10)
+- Agent SDK: [Autumn-27/norma](https://github.com/Autumn-27/norma) (currently unreachable, checked 2026-10)

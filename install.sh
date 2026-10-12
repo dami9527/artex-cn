@@ -65,8 +65,14 @@ install_docker(){
   fi
   build_artex_image
   info "构建镜像并启动…"
-  docker compose up -d --build
+  if ! docker compose up -d --build; then
+    warn "镜像构建或启动失败（请检查网络、Docker 环境，以及 dist/ 下是否已有 Linux 二进制；见 README「自行构建中文版镜像」一节）"
+    warn "也可以重新运行本脚本并选择「2) 本地运行（go 编译）」，或按 README「从源码编译单一二进制」一节自行构建"
+    die "Docker Compose（全部用 Docker）启动失败"
+  fi
   ok "启动完成 → http://localhost:8787（界面语言：${NEXT_PUBLIC_LOCALE:-zh}）"
+  info "首次访问时需要在 /setup 页面填入「设置令牌」，才能创建管理员密码"
+  info "查看设置令牌：docker compose logs artex | grep '设置令牌'   （默认只发布到 127.0.0.1，可用 .env 里的 ARTEX_BIND 修改）"
   info "查看日志：docker compose logs -f artex"
 }
 
@@ -124,7 +130,7 @@ JSON
   fi
   ok "编译完成 → ./artex"
 
-  info "启动…（Ctrl-C 退出）"
+  info "启动…（Ctrl-C 退出）。默认监听 127.0.0.1:8787；首次访问时请把下面日志里的 [auth] 设置令牌填入 /setup 页面"
   ./artex
 }
 

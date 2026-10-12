@@ -6,6 +6,8 @@ import { fontVars } from "@/lib/fonts/registry";
 import { PREFERENCE_DEFAULTS } from "@/lib/preferences/preferences-config";
 import { ThemeBootScript } from "@/scripts/theme-boot";
 
+import enMessages from "../../messages/en.json";
+import esMessages from "../../messages/es.json";
 import zhMessages from "../../messages/zh.json";
 import { GlobalNotFoundBody } from "./_components/global-not-found-body";
 
@@ -14,9 +16,14 @@ import "./globals.css";
 // 本页面不继承根布局（它直接返回完整的 HTML 文档），所以必须把 **messages 直接
 // 传给** NextIntlClientProvider。不传的话，静态导出时客户端无法解析文案，会输出
 // Next 默认的英文 404 页面。404 只有寥寥几行文案，因此只挑选所需的命名空间传下去
-// （节省文档体积）。支持的 locale 与 web/src/i18n/config.ts 的 LOCALES 一致。
+// （节省文档体积）。支持的 locale 与 web/src/i18n/config.ts 的 LOCALES 一致，
+// 三种语言都必须有，否则 MESSAGES[locale] 会是 undefined。
+const notFoundOnly = (messages: Record<string, unknown>) => ({ notFound: messages.notFound });
+
 const MESSAGES: Record<Locale, Record<string, unknown>> = {
-  zh: { notFound: (zhMessages as Record<string, unknown>).notFound },
+  en: notFoundOnly(enMessages as Record<string, unknown>),
+  zh: notFoundOnly(zhMessages as Record<string, unknown>),
+  es: notFoundOnly(esMessages as Record<string, unknown>),
 };
 
 // 访问不存在的 URL 时展示的页面。App Router 的 `not-found.tsx` 只会生成供

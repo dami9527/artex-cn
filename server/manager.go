@@ -275,6 +275,10 @@ const (
 	// agent(planner/worker/主 agent/对话)由 noa 接管上下文压缩,取代内置 compaction。
 	// 每 run 读一次,切换只影响之后启动的 run。
 	settingNoaCompaction = "noa_compaction"
+	// settingOutputLanguage 是用户可见输出语言（"en"/"zh"/"es"）的运行期取值。
+	// 为空时回落到 config.Language()（ARTEX_LANG > 配置文件 > 默认 zh）。智能体的
+	// 输出语言（langDirective）与后端消息目录都遵循这个值。
+	settingOutputLanguage = "output_language"
 	// defaultWebSearchBackend is used when web search is on but no backend was picked.
 	defaultWebSearchBackend = "ddgs"
 	// deepSeekWebSearchBackend borrows the active LLM profile instead of its own
@@ -364,7 +368,7 @@ func NewManager(dir, proxyAddr string) (*Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[pg] 数据库配置来源: %s", source)
+	log.Printf(logT("[pg] 数据库配置来源: %s"), source)
 	pg, err := pgdb.Open(dsn)
 	if err != nil {
 		return nil, err
@@ -683,9 +687,9 @@ func (m *Manager) syncBrowserMCPProxy() {
 		return
 	}
 	if proxy != "" {
-		log.Printf("[mcp] browser MCP 已挂捕获代理 %s (CA %s)", proxy, cert)
+		log.Printf(logT("[mcp] browser MCP 已挂捕获代理 %s (CA %s)"), proxy, cert)
 	} else {
-		log.Printf("[mcp] browser MCP 已移除捕获代理配置")
+		log.Print(logT("[mcp] browser MCP 已移除捕获代理配置"))
 	}
 }
 

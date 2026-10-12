@@ -88,7 +88,9 @@ jobs:
           path: dist
       - name: Generate checksums
         working-directory: dist
-        run: sha256sum *.zip > SHA256SUMS
+        # `--` 终止选项解析：文件名即使以 -（短横线）开头也不会被当成参数
+        # （actionlint/shellcheck 的 SC2035 也就是冲着这一点提的）。
+        run: sha256sum -- *.zip > SHA256SUMS
       - uses: softprops/action-gh-release@v2
         with:
           files: |
@@ -96,36 +98,39 @@ jobs:
             dist/SHA256SUMS
           generate_release_notes: true
 
-  # ④-0 发布凭据门禁：只有配置了 DOCKERHUB 机密时才运行 docker job。
-  #     没有机密就跳过（skipped）docker job，让发布 CI 不带红叉地结束。
-  #     GitHub Actions 的 job 级 if 不能直接引用 secrets，因此先把机密是否存在
-  #     作为本 job 的输出传出去，再拿它当 docker job 的 if 条件。
-  #     发到哪个命名空间是另行决定的事项（G6、DECISIONS 8）。
-  docker-gate:
-    runs-on: ubuntu-latest
-    outputs:
-      publish: ${{ steps.check.outputs.publish }}
-    steps:
-      - name: 检查 Docker Hub 发布凭据
-        id: check
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        run: |
-          if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::未配置 DOCKERHUB_USERNAME/DOCKERHUB_TOKEN 机密，跳过 Docker 镜像发布（docker job）。二进制发布照常进行。"
-          fi
-
-  # ④ 多架构镜像 → 推送到 Docker Hub（复用 binaries 编好的 Linux 二进制，
-  #    镜像里只装工具 + 放二进制；arm64 只需模拟 apt 层，构建快得多）
+  # ④ 多架构镜像 → 推送到 GitHub Container Registry(ghcr.io)（复用 binaries 编好的 Linux
+  #    二进制，镜像里只装工具 + 放二进制；arm64 只需模拟 apt 层，构建快得多）。
+  #    登录用工作流自带的 GITHUB_TOKEN（job 权限 packages: write），不需要额外的机密。
+  #    上游 autumn27/artex（Docker Hub）已下架，本仓库也没有它的推送权限，因此发布到本仓库
+  #    自己的 ghcr 命名空间。
   docker:
-    needs: [binaries, docker-gate]
-    if: needs.docker-gate.outputs.publish == 'true'
+    needs: [binaries]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      # ⚠️ 发布命名空间（本仓库自己的）：ghcr.io/dami9527/artex-cn。
+      #    首次发布后请在 GitHub 的 package 设置里确认它是 public，否则 docker compose pull
+      #    会因认证失败而拉不到。若改回上游或其它 fork 的命名空间，下面的守卫步骤会在构建
+      #    之前直接中止（那种情况下 login 会成功，但最后 push 会以 denied 失败）。
+      IMAGE_NAMESPACE: ghcr.io/dami9527/artex-cn
     steps:
+      # 命名空间若还是上游/其它 fork 的占位符，就在这里提前中止：那时 docker/login 会以本仓库
+      # 身份成功，但 push 目标是别人的命名空间，只会在最后一步以 denied 迟而混乱地失败。
+      # 这一步不挑选命名空间值，只拦住「还没改」的情况。
+      - name: 检查发布命名空间是否仍是上游占位符（构建前中止）
+        run: |
+          case "${IMAGE_NAMESPACE}" in
+            "")
+              echo "::error::docker job 的 env.IMAGE_NAMESPACE 为空。请填本仓库自己的命名空间（例如 ghcr.io/dami9527/artex-cn）后重新打标签。"
+              exit 1
+              ;;
+            autumn27/artex | jiwoochris/artex-ko | ghcr.io/jiwoochris/artex-ko)
+              echo "::error::docker job 的 env.IMAGE_NAMESPACE 仍是上游或其它 fork 的命名空间 '${IMAGE_NAMESPACE}'。本仓库没有它的推送权限，发布会在 push 阶段以 denied 失败。请改成本仓库自己的命名空间（例如 ghcr.io/dami9527/artex-cn）后重新打标签。"
+              exit 1
+              ;;
+          esac
       - uses: actions/checkout@v4 # 取 Dockerfile 与 skills/
       - uses: actions/download-artifact@v4
         with:
@@ -139,12 +144,13 @@ jobs:
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: autumn27/artex
+          images: ${{ env.IMAGE_NAMESPACE }}
           tags: |
             type=ref,event=tag
             type=raw,value=latest

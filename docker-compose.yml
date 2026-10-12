@@ -20,6 +20,8 @@ services:
     #   docker compose up -d --build      （见 README「自行构建中文版镜像」一节）
     # 上游镜像 autumn27/artex 已随原作者关闭仓库而从 Docker Hub 下架
     # （pull 会报 not found），因此无法用 pull 启动。
+    # 发布 CI 在打 v* 标签时会把多架构镜像发到 ghcr.io/dami9527/artex-cn，但这里默认
+    # 仍走本地构建，不去拉任何预发布镜像。
     build:
       context: .
       dockerfile: Dockerfile
@@ -39,8 +41,21 @@ services:
       # 无从得知，所以服务端向数据库播种的显示名（reporter 等）的语言由这个运行时
       # 变量决定。build-image.sh 会把 locale 原样填进来。
       ARTEX_LOCALE: ${ARTEX_LOCALE:-zh}
+      # 首次设置保护。留空时启动日志会打印一个随机设置令牌，需要在 /setup 页面填入该值
+      # 才能创建管理员密码（用 docker compose logs artex 查看）。
+      # 若给出 ARTEX_ADMIN_PASSWORD，则跳过 /setup，直接用该值初始化（至少 8 个字符）。
+      ARTEX_SETUP_TOKEN: ${ARTEX_SETUP_TOKEN:-}
+      ARTEX_ADMIN_PASSWORD: ${ARTEX_ADMIN_PASSWORD:-}
+      # 浏览器跨源（CORS）白名单（逗号分隔）。内置 UI 是同源，通常保持为空。
+      ARTEX_CORS_ORIGINS: ${ARTEX_CORS_ORIGINS:-}
+      # 服务端默认输出语言（en、zh、es）。留空即简体中文。agent 输出与错误消息以设置页面的
+      # 「显示语言」为准，服务端控制台日志只跟随这个值。
+      ARTEX_LANG: ${ARTEX_LANG:-}
     ports:
-      - "8787:8787"
+      # 默认只发布到宿主机的 127.0.0.1。需要从其他设备直接访问时，在 .env 里设
+      # ARTEX_BIND=0.0.0.0，但务必先完成首次设置（管理员密码），并尽量改用 README 里的
+      # 反向代理（HTTPS）方案。
+      - "${ARTEX_BIND:-127.0.0.1}:8787:8787"
       - "127.0.0.1:8788:8788"
     volumes:
       # 把数据目录（含 jwt.key、SQLite 等）绑定到项目根目录的 data/，

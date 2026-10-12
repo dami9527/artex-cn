@@ -11,3 +11,25 @@
 # 账号已改名或删除，返回 404。按上游原文保全方针（BRIEF 边界 #1、MAINTAINING 第 2 节），
 # CHANGELOG.zh.md 保持上游原样，因此我们不去修它。2026-10-07 确认。
 https://github.com/begininvoke
+
+# 上游（Autumn-27/ARTEX）仓库、在线演示、发布/compare 资产无法公开访问（404），2026-10 确认。
+# 下面这些 URL 是本 fork 作为基础与出处所指向的上游资产。2026-10 当前全部 404、无法
+# 访问。因为必须保留 AGPL-3.0 的出处标注（BRIEF 边界 #1），链接本身不删除，而是在策展
+# 文档（README·CONTRIBUTING·MAINTAINING·SECURITY·docs/defense）中于每个链接旁边标注
+# 「（当前无法访问，2026-10 确认）」（G138a 决定 A）。这些资产归上游所有，我们无法将其
+# 恢复，因此放进 allowlist。compare·releases 链接是由上游原文保全文件
+# （CHANGELOG.zh.md·README.zh.md）继承下来的，故保留原文。
+https://artex-demo.vercel.app/
+https://github.com/Autumn-27/ARTEX
+https://github.com/Autumn-27/norma
+https://github.com/Autumn-27/ARTEX/releases
+https://github.com/Autumn-27/ARTEX/compare/v0.3.1...v0.3.2
+https://github.com/Autumn-27/ARTEX/compare/v0.3.2...v0.3.3
+https://github.com/Autumn-27/ARTEX/compare/v0.3.3...v0.3.4
+https://github.com/Autumn-27/ARTEX/compare/v0.3.4...v0.3.5
+https://github.com/Autumn-27/ARTEX/compare/v0.3.5...v0.3.6
+https://github.com/Autumn-27/ARTEX/compare/v0.3.6...v0.3.7
+https://github.com/Autumn-27/ARTEX/compare/v0.3.7...v0.3.8
+https://github.com/Autumn-27/ARTEX/compare/v0.3.8...v0.3.9
+https://github.com/Autumn-27/ARTEX/compare/v0.3.9...v0.3.10
+https://github.com/Autumn-27/ARTEX/compare/v0.3.10...HEAD

@@ -2,7 +2,7 @@
 
 中文 · [English](MAINTAINING.en.md)
 
-本文整理**维护者**在跟进原仓库 [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX) 的变更、
+本文整理**维护者**在跟进原仓库 [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX)（当前无法访问，2026-10 核实）的变更、
 维持中文本地化的过程中要走的流程。贡献范围、法律责任与本地化方针见
 [CONTRIBUTING.md](CONTRIBUTING.md)，面向使用者的说明见 [README.md](README.md)，
 所以本文只聚焦于**这些方针实际怎么执行**。
@@ -21,9 +21,9 @@
 产物分为三类。
 
 - **原文保持不动的资产**（见第 2 节）。翻译会破坏性能或与上游的对照。
-- **代码固定的输出语言强制**。`agent/prompt.go` 的 `langDirective()` 会在各角色 system
-  提示词末尾追加「用户可见输出用简体中文书写」的指示。
-- **需要中文化的用户可见字符串**。界面文案放在 `web/messages/zh.json`，服务端的用户响应
+- **代码固定的输出语言强制**。`agent/prompt.go` 的 `langDirective()` 会按当前「显示语言」在各角色
+  system 提示词末尾追加「用户可见输出用该语言书写」的指示（本仓库默认简体中文，可在设置里切到英语或西班牙语）。
+- **需要中文化的用户可见字符串**。界面文案放在 `web/messages/{zh,en,es}.json`（默认 `zh`），服务端的用户响应
   文案放在各 Go 文件的具名常量里。
 
 ---
@@ -40,7 +40,7 @@
   兼作两种用途，因此保留原文。每条这样的取舍都写在引入它的那次提交信息里，需要追溯时用
   `git log -S'<该字符串>'` 查看。
 - **上游中文文档与界面文案。** 文档把上游中文原文保留在 `README.zh.md`，便于与上游变更对照；
-  界面文案集中放在 `web/messages/zh.json`，组件按消息键取用，不要硬编码。
+  界面文案集中放在 `web/messages/{zh,en,es}.json`，组件按消息键取用，不要硬编码；上游中文原文保留在 `zh.json` 一份里，便于与上游变更对照。
 - **命令、payload、代码、URL、标识符、日志原文。** 它们是分析所需的原始材料，不翻译。
   Go 代码注释的优先级最低，等与上游对照结束后再处理。
 
@@ -91,8 +91,8 @@ git log --name-status --oneline d003372..upstream/main
   → **不做翻译、原样落地**。
 - Go 后端逻辑（`db/`、`llmrec/`、`server/` 等）有改动 → 逻辑原样落地，但要确认是否**新增了
   用户响应文案**（`writeErr` 等），并译成中文常量。
-- UI（`web/src/**`）有改动、**出现新的界面字符串** → 不要硬编码，在 `web/messages/zh.json` 里
-  按同一套键添加。
+- UI（`web/src/**`）有改动、**出现新的界面字符串** → 不要硬编码，在 `web/messages/{zh,en,es}.json` 里
+  按同一套键添加（默认语言是 zh，三份目录都要补齐新键）。
 - **检测规则固定的上游指标**（`enrich/enrich.go` 的探测器 User-Agent、`selfupdate/` 的自更新
   User-Agent、`guard/guard.go` 的审计标记、`db/db.go` 的破坏性命令 deny 列表、
   `cmd/artex/main.go` 的默认监听与记录代理端口）有改动 → 把 `detections/` 的 Sigma、Suricata
@@ -103,7 +103,7 @@ git log --name-status --oneline d003372..upstream/main
 ### 4.3 落地
 
 按功能单位合并或挑选落地，然后把 4.2 里挑出的新字符串译成中文。合并过程中
-`web/messages/zh.json` 很容易出现缺键，或让上游原文漏进用户可见的位置，所以落地之后必须执行
+`web/messages/{zh,en,es}.json` 很容易出现缺键，或让上游原文漏进用户可见的位置，所以落地之后必须执行
 第 5 节的检查。
 
 > **示例（2026-10-05 时尚未落地的提交）。** `git fetch upstream` 的结果显示上游 `main` 已经推进到
@@ -122,10 +122,17 @@ git log --name-status --oneline d003372..upstream/main
 
 上游落地或翻译工作之后，确认以下几项。
 
-### 5.1 界面文案目录与韩文残留检查
+### 5.1 界面文案目录、后端消息目录与韩文残留检查
 
-本仓库的界面固定为简体中文，界面文案只有 `web/messages/zh.json` 一份目录（`web/src/i18n/config.ts`
-的 `LOCALES` 只有 `zh`）。改动界面后要确认它是合法的 JSON、键没有重复，并且没有把韩文带进来。
+> 本地化架构（前端三份文案目录、后端以**中文原文为键**的消息目录、Agent 输出语言规约、
+> 以及全部相关门禁）的完整说明见 **[docs/localization-zh.md](docs/localization-zh.md)**。
+> 下面只列维护时最常踩的点。
+
+本仓库的界面默认简体中文，界面文案有 `web/messages/{zh,en,es}.json` 三份目录（`web/src/i18n/config.ts`
+的 `LOCALES = ["zh","en","es"]`、`DEFAULT_LOCALE = "zh"`，没有韩语）。改动界面后要确认三份都是合法的 JSON、键没有重复或缺失，并且没有把韩文带进来。
+服务端的用户可见文案放在以**中文原文为键**的目录里（`server/errmsg_catalog.go` 与
+`config/msg_i18n.go`）：改了源码里的文案就必须同步改目录键，否则中文界面照常、en/es 会静默回落成
+中文。`go test ./server/ ./config/` 里的几条门禁会逐条比对键与源码原文。
 仓库把「不允许韩文残留」固化成了可执行检查 `scripts/check-no-korean.py`：它扫描工作树下的文本文件
 （跳过 `.git`、`node_modules` 等依赖目录、构建产物与二进制文件），只要任何一行还有谚文就以非零
 退出码失败。上游落地与冲突消解时很容易把历史遗留的韩文重新带进来，所以合并后立刻跑一遍。
@@ -316,17 +323,18 @@ git push origin v0.3.15
 
 ### 9.2 流水线做什么
 
-工作流分为五个作业。
+工作流分为四个作业。
 
 - **frontend。** 把前端静态导出一次（`web/out`），并把产物作为 `web-dist` 工件上传。下面的
   binaries 作业对每个目标重新取用这份产物。
 - **binaries。** 交叉编译五个目标（linux amd64、arm64，darwin amd64、arm64，windows amd64），
   并按目标打成 zip。linux amd64 二进制会跑一次 `artex -h` 冒烟测试，确认二进制真的能执行。
-- **release。** 收集全部 zip，生成 `SHA256SUMS` 校验和，创建 GitHub Release 并附上 zip 与校验和。
-- **docker-gate。** 检查 `DOCKERHUB_USERNAME`、`DOCKERHUB_TOKEN` 密钥是否配置，并把结果作为下
-  一个作业的执行条件传下去。
-- **docker。** 只在上述密钥存在时运行，取 binaries 交叉编译出的 linux 二进制，构建多架构镜像并
-  推送到 Docker Hub。没有密钥时跳过这个作业，发布 CI 不会报红失败，只产出二进制发布。
+- **release。** 收集全部 zip，生成 `SHA256SUMS` 校验和（`sha256sum -- *.zip`，用 `--` 终止选项
+  解析），创建 GitHub Release 并附上 zip 与校验和。
+- **docker。** 取 binaries 交叉编译出的 linux 二进制，构建多架构（amd64、arm64）镜像，并以发布
+  标签和 `latest` 推送到 GitHub Container Registry 的 `ghcr.io/dami9527/artex-cn`（本仓库自己的
+  命名空间）。登录用工作流自带的 `GITHUB_TOKEN`（作业权限 `packages: write`），不需要额外密钥；
+  该作业的第一个步骤会在命名空间为空或仍是上游占位符时提前中止（见 9.4）。
 
 ### 9.3 构建前提是否与仓库结构相符
 
@@ -346,11 +354,18 @@ git push origin v0.3.15
   `COPY dist/${TARGETARCH}/artex` 会用在多架构构建里由 buildx 按各平台填好的 `TARGETARCH` 命中
   这个路径。[`.dockerignore`](.dockerignore) 没有排除 `dist/`，所以二进制会进入构建上下文。
 
-### 9.4 尚未决定的事项：Docker 镜像命名空间
+### 9.4 Docker 镜像命名空间
 
-docker 作业目前把镜像名留在上游的 `autumn27/artex`，而本 fork 要用哪个命名空间发布仍是
-待决事项。在决定之前不配置 Docker Hub 密钥，期间的发布
-只产出二进制 zip 与校验和（docker 作业跳过）。
+镜像发布到本仓库自己拥有的 `ghcr.io/dami9527/artex-cn`；命名空间集中在 `release.yml` 的
+docker 作业 `env.IMAGE_NAMESPACE` 一处，命名空间守卫会在它为空或仍是上游/其它 fork 的占位符
+（`autumn27/artex`、`jiwoochris/artex-ko`、`ghcr.io/jiwoochris/artex-ko`）时于构建前中止，
+避免登录成功、最后 push 才以 `denied` 失败。上游的 `autumn27/artex` 已从 Docker Hub 下架，
+本仓库也没有该命名空间的推送权限，因此不再使用。
+
+`docker-compose.yml` 默认仍用本地 Dockerfile 构建（`${ARTEX_IMAGE:-artex-cn:local}`），不拉任何
+预发布镜像；发布出来的 GHCR 镜像供需要直接取用的部署自行指定。GHCR 包在首次发布时可能是
+私有的，请在第一个发布之后到 GitHub 的 package 设置里确认它是 public；私有状态下用镜像启动
+会因认证失败而拉取不到。
 
 ### 9.5 不打标签在本地预验证
 

@@ -4,9 +4,13 @@ name: detections
 # 吻合，并通过 SigmaHQ 惯例的全量校验。只改规则、没更新测试与图层的改动会在这里显红。
 # 本工作流把 CONTRIBUTING.md 与 detections/tests/README.md 所承诺的「八套测试机械地
 # 强制贡献契约」真正落成合并门禁。Go 构建、静态分析与测试由 ci.yml 负责。
-# 除八套测试外，还有两道非规则门禁在同一个合并门禁里跑：台架注册表同步检查，以及
-# 主机分类工具（detections/triage/artex_host_triage.py）的自检。两者都与八套规则测试
-# 无关，由 run-all.sh 一并运行。
+# 除八套测试外，还有三道非规则门禁在同一个合并门禁里跑：台架注册表同步检查、主机分类
+# 工具（detections/triage/artex_host_triage.py）的自检，以及防御指南
+# （docs/defense-{zh,en}.md）里以正文形式内嵌的 Sigma 关联模板的一致性检查。三者都与
+# 八套规则测试无关，由 run-all.sh 一并运行。第三道门禁把该模板在防御指南里断言的事实
+# （通过 `sigma check`、能在 splunk/eql/loki 上转换、lucene/kusto 不支持关联转换、
+# 中英文两份的规则正文完全一致）重新复现一遍，好让上游 sigma-cli 或后端升级导致正文
+# 悄悄过时的情况在合并门禁上暴露出来。
 #
 # 八套测试只要有 Docker 就能跑（ubuntu-latest runner 自带 Docker）。runner 会拉取
 # sigma-cli、scapy、suricata、python 镜像并在容器里隔离执行，因此 runner 本身不装
@@ -28,6 +32,10 @@ on:
       - "db/schema.sql"
       - "cmd/artex/main.go"
       - "traffic/traffic.go"
+      # 第三道门禁（防御模板一致性检查）会读取这两个文件。模板改动就要重新校验，
+      # 因此放进触发路径。
+      - "docs/defense-zh.md"
+      - "docs/defense-en.md"
       - ".github/workflows/detections.yml"
   pull_request:
     paths:
@@ -40,6 +48,8 @@ on:
       - "db/schema.sql"
       - "cmd/artex/main.go"
       - "traffic/traffic.go"
+      - "docs/defense-zh.md"
+      - "docs/defense-en.md"
       - ".github/workflows/detections.yml"
 
 permissions:
@@ -60,6 +70,8 @@ jobs:
         run: detections/tests/check-harness-sync.sh
       - name: 主机分类工具自检（artex_host_triage.py --self-test · 非规则门禁）
         run: detections/tests/triage-selftest.sh
+      - name: 防御指南内联 Sigma 模板一致性检查（sigma check·转换矩阵·中英文正文一致 · 非规则门禁）
+        run: detections/tests/check-defense-template.sh
       - name: Sigma 规则可复现测试（sigma check + 后端转换 + 指标保全）
         run: detections/tests/sigma/run.sh
       - name: Sigma 真实事件匹配测试（原子规则与关联规则：对恶意样本/时间线触发，对正常样本静默）

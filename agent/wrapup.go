@@ -93,10 +93,29 @@ func resolveWrapupTurns(agentKey string) int {
 // (reads DB live), so edits apply on the next run without a restart.
 func wrapupSettlement(agentKey string, disabledTools []string) *harness.Settlement {
 	return &harness.Settlement{
-		Prompt:        resolveWrapup(agentKey),
+		Prompt:        withWrapupLang(resolveWrapup(agentKey)),
 		DisabledTools: disabledTools,
 		MaxTurns:      resolveWrapupTurns(agentKey),
 	}
+}
+
+// withWrapupLang 在收尾提示词后面追加输出语言指示（langDirective）。
+// 收尾提示词与系统提示词不同，不会自动带上 langDirective 尾巴，所以要在这里手动追加，
+// 用户看到的最后一句话总结才会遵循所选的展示语言。
+// 收尾正文本身是给模型阅读的运营指示（保持原文不改），这条尾巴以最高优先级只强制
+// 用户可见文本的语言。对不输出总结的 planner 系列无害。
+// 默认输出语言（defaultOutputLang = zh，即本仓库的中文默认路径）下不追加尾巴：
+// 系统提示词的 langDirective 已经强制中文输出，这样默认路径的模型输入与之前版本
+// 保持一致（防止基准漂移）。
+func withWrapupLang(prompt string) string {
+	if strings.TrimSpace(prompt) == "" {
+		return prompt
+	}
+	lang := resolveOutputLang()
+	if lang == defaultOutputLang {
+		return prompt
+	}
+	return prompt + langDirective(lang)
 }
 
 // ---------- 任务级超时收尾词（见 docs/任务级超时与收尾设计.md）----------
@@ -154,7 +173,7 @@ func resolveTaskTimeoutTurns(agentKey string) int {
 //
 // 交给 harness 的 PromptByReason 在收尾时按【实际】reason 现场挑，无 build 时错配。
 func wrapupSettlementForTask(agentKey string, disabledTools []string, clamped bool) *harness.Settlement {
-	perRun := resolveWrapup(agentKey)
+	perRun := withWrapupLang(resolveWrapup(agentKey))
 	st := &harness.Settlement{
 		Prompt:        perRun, // 兜底(也是非 clamped 时两种 reason 的取值)
 		DisabledTools: disabledTools,
@@ -163,8 +182,8 @@ func wrapupSettlementForTask(agentKey string, disabledTools []string, clamped bo
 	if clamped {
 		if tt := resolveTaskTimeoutWrapup(agentKey); tt != "" {
 			st.PromptByReason = map[harness.TerminalReason]string{
-				harness.ReasonTimeout:  tt,     // 任务到点
-				harness.ReasonMaxTurns: perRun, // 步数先耗尽、任务还剩时间
+				harness.ReasonTimeout:  withWrapupLang(tt), // 任务到点
+				harness.ReasonMaxTurns: perRun,             // 步数先耗尽、任务还剩时间
 			}
 			st.MaxTurns = resolveTaskTimeoutTurns(agentKey)
 		}

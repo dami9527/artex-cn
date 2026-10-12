@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
+import { auth } from "@/lib/auth";
 
 export function ChangePasswordDialog({
   open,
@@ -53,7 +54,10 @@ export function ChangePasswordDialog({
     setSaving(true);
     api
       .changePassword(oldPassword, newPassword)
-      .then(() => {
+      .then((res) => {
+        // 密码变更后，服务端会让此前签发的 token 全部失效。用响应里的新 token 只延续
+        // 当前会话，其他浏览器上的会话会被登出。
+        if (res.token) auth.setToken(res.token);
         toast.success(t("success"));
         onOpenChange(false);
       })

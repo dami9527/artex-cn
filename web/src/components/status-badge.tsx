@@ -17,9 +17,9 @@ export function StatusBadge({
   className?: string;
 }) {
   const meta = statusMeta(domain, value);
-  // Shared status labels live in the "status" message namespace (ko/zh);
+  // Shared status labels live in the "status" message namespace (zh/en/es);
   // lib/status.ts only carries the color tone. The raw value is the last-resort
-  // fallback for an unknown status (every real status.* key exists in ko/zh).
+  // fallback for an unknown status (every real status.* key exists in zh/en/es).
   const t = useTranslations("status");
   const key = `${domain}.${value}`;
   const label = t.has(key) ? t(key) : value;

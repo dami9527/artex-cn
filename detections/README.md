@@ -156,10 +156,15 @@ mitmproxy CA 信任变量（`agent/worker.go`），从 `/proc` 或 `--proc-from`
   四项检查，因此规则一旦引入新的约定问题（大小写写错的标题、超出分类体系的
   字段），构建就会失败。
 
-除八个规则测试之外，还有两个非规则的测试门禁在同一个 CI 工作流与 [`tests/run-all.sh`](tests/run-all.sh)
+除八个规则测试之外，还有三个非规则的测试门禁在同一个 CI 工作流与 [`tests/run-all.sh`](tests/run-all.sh)
 中一起运行。一个是测试框架同步检查（确认 run-all.sh·CI·套件目录是否按相同顺序调用相同的套件），
-另一个是[主机分类工具](triage/)的 `--self-test`（[`tests/triage-selftest.sh`](tests/triage-selftest.sh)），
-它构造合成主机，断言所有分类检查都会触发、并且在干净主机上发现数为 0。
+一个是[主机分类工具](triage/)的 `--self-test`（[`tests/triage-selftest.sh`](tests/triage-selftest.sh)），
+它构造合成主机，断言所有分类检查都会触发、并且在干净主机上发现数为 0；第三个是防御指南内联
+Sigma 模板一致性检查（[`tests/check-defense-template.sh`](tests/check-defense-template.sh)），
+它把防御指南对自己那段内联 Sigma 关联模板的断言重新跑一遍——能通过 `sigma check`、能在
+splunk/eql/loki 上转换、lucene 与 kusto 拒绝该关联、中英文两份的规则正文完全一致。那段模板
+是以正文形式放在规则树之外的，没有这道门禁就没有任何套件能发现它在上游 sigma-cli 变化后
+悄悄过时。
 
 每个脚本只要有一条断言失败就以非 0 代码退出。参见 [`tests/README.md`](tests/README.md)。
 

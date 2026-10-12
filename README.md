@@ -4,6 +4,8 @@
 
 **LLM 多智能体自主执行渗透测试的系统**（Go 后端 + Next.js 前端）
 
+界面与产出默认简体中文，**可以在设置（系统 → 设置 → 显示语言）里切换成英文或西班牙语**。切换语言后，agent 生成的报告、摘要与对话回复的语言也会一起改变。
+
 中文 · [English](README.en.md)
 
 [![ci](https://github.com/dami9527/artex-cn/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dami9527/artex-cn/actions/workflows/ci.yml) [![detections](https://github.com/dami9527/artex-cn/actions/workflows/detections.yml/badge.svg?branch=main)](https://github.com/dami9527/artex-cn/actions/workflows/detections.yml) [![web](https://github.com/dami9527/artex-cn/actions/workflows/web.yml/badge.svg?branch=main)](https://github.com/dami9527/artex-cn/actions/workflows/web.yml) [![license: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
@@ -26,7 +28,7 @@
 
 ---
 
-> **本仓库是开源项目 [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX)（AGPL-3.0）的中文本地化版本。** 为保留 agent 的判断性能，内部推理提示词保持原文不改，只把面向用户的产出（检测结果、摘要、报告、对话回复）强制为简体中文。方针见下方「关于中文版」。
+> **本仓库是开源项目 [Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX)（AGPL-3.0 · 上游仓库当前无法访问，2026-10 核实）的中文本地化版本。** 为保留 agent 的判断性能，内部推理提示词保持原文不改，只把面向用户的产出（检测结果、摘要、报告、对话回复）强制为简体中文。方针见下方「关于中文版」。
 
 ARTEX 是一套由 LLM 驱动的多智能体系统：多个 agent **自行拆解目标、调用真实工具执行、把发现的资产与漏洞持续沉淀到图中**，从而自主推进渗透测试过程。整个系统是单个 Go 二进制，内嵌 Next.js 前端，数据存放在 PostgreSQL。
 
@@ -58,7 +60,7 @@ ARTEX 只能用于**自己所有，或已获得书面明确授权的目标**。�
 
 上游 ARTEX 的提示词、界面与文档本身以中文为主。本仓库把它整理为面向中文用户的**默认版本**，目标是：
 
-- **面向用户的产出统一为简体中文**：强制 agent 把检测结果、事实摘要、最终报告与对话回复输出为简体中文。命令、payload、代码、URL 与日志原文是分析所需，保持原样。
+- **面向用户的产出默认统一为简体中文**：agent 把检测结果、事实摘要、最终报告与对话回复输出为当前「显示语言」，本仓库的默认值是简体中文（可在设置里切成英语或西班牙语）。命令、payload、代码、URL 与日志原文是分析所需，保持原样。
 - **性能保留**：左右 agent 判断的内部推理提示词（行为指令正文）不做翻译，维持按原文基准测试过的行为，只改输出语言，避免翻译带来的质量下降。
 - **合规告知**：以中文明确给出《网络安全法》《数据安全法》《个人信息保护法》的合规提示，以及「仅在授权范围内使用」的警告。
 - **本地技术栈适配**：LLM 提供方除前沿模型外，也可以换成 OpenAI 兼容端点（国产与开源模型）。参见下方 [配置](#配置)。
@@ -98,7 +100,7 @@ ARTEX 只能用于**自己所有，或已获得书面明确授权的目标**。�
 
 > **⚠️ 只执行 `docker compose up -d` 起不来。** `docker-compose.yml` 里的 `artex` 服务原本拉取 `autumn27/artex` 镜像，而该镜像已随原作者关闭仓库**从 Docker Hub 消失**（现在 pull 会返回 `not found`）。唯一可行的路径是**自行构建**，构建出来的就是本仓库的中文版。参见下方 [自行构建中文版镜像](#自行构建中文版镜像)。
 >
-> （本项目不把镜像发布到 Docker Hub，`ARTEX_IMAGE` 只用于指定自行构建出的镜像标签。）
+> （发布 CI 在打 `v*` 标签时会把多架构镜像发到本仓库自己的 `ghcr.io/dami9527/artex-cn`，但 compose 默认仍走本地构建、不去拉任何预发布镜像；`ARTEX_IMAGE` 只用于指定自行构建出的镜像标签。）
 
 ```bash
 git clone https://github.com/dami9527/artex-cn.git
@@ -106,15 +108,18 @@ cd artex-cn
 cp .env.example .env          # 设置 POSTGRES_PASSWORD，ANTHROPIC_API_KEY 可选
 ./build-image.sh              # ①前端 → ②二进制 → ③构建中文版镜像并启动（内部会调 docker compose up -d --build）
 # → 访问 http://localhost:8787（首次进入在 /setup 设置管理员密码）
+#   /setup 需要填入启动日志里的「设置令牌」：docker compose logs artex | grep '设置令牌'
 ```
 
-`./skills` 与 `./data` 通过绑定挂载保留在宿主机上，重建容器也不会丢失。
+镜像里内置常用工具（ripgrep、curl、vim、npm、nmap 等）。`./skills` 与 `./data` 通过绑定挂载保留在宿主机上，重建容器也不会丢失。
 
 ### 界面与输出语言
 
-本仓库是**中文版**，界面语言固定为简体中文（`zh`），**不提供切换**：`web/src/i18n/config.ts` 的 `LOCALES` 只有 `zh` 一项，`NEXT_PUBLIC_LOCALE` 只在构建期取值，取值不是 `zh` 时回落到 `zh`，界面文案集中在 `web/messages/zh.json`。
+本仓库是**中文版**，界面语言默认简体中文（`zh`），并可在设置里切换到**英语（`en`）与西班牙语（`es`）**（`web/src/i18n/config.ts` 的 `LOCALES` 就是这三项，没有韩语）。界面文案集中在 `web/messages/{zh,en,es}.json`；`NEXT_PUBLIC_LOCALE` 只在构建期决定首屏预渲染 HTML 的语言，运行期以用户在设置里选的值为准。
 
-> **重要：界面与 agent 输出都是简体中文。** agent 产出的**漏洞报告、事实摘要、最终总结与聊天回复的语言由 Go 代码决定**（`agent/prompt.go` 的 `langDirective()` 强制简体中文输出，这是本仓库的设计）。命令、payload、代码、URL 与日志原文为分析所需，保持原样。
+> **重要：面向用户的产出语言跟随「显示语言」。** agent 产出的**漏洞报告、事实摘要、最终总结与聊天回复**，以及服务端错误消息与状态标签，都由 Go 代码按当前显示语言下发指令（`agent/prompt.go` 的 `langDirective()`）。命令、payload、代码、URL 与日志原文为分析所需，保持原样；agent 的行为指令正文（推理大脑）也不翻译，以保留基准测试过的判断性能。
+
+> **默认输出语言。** 没有在设置里选过语言时，服务端默认输出语言由 `ARTEX_LANG`（或 `config.json` 的 `language` 字段）决定，取值 `en`/`zh`/`es`，留空即简体中文；服务端控制台日志只跟随这个值，与设置页面的选择无关。
 
 > **韩文残留门禁。** 仓库把「不允许韩文残留」固化成了可执行检查 `scripts/check-no-korean.py`：它扫描**工作树下的文本文件**（跳过 `.git`、`node_modules` 等依赖目录、构建产物与二进制文件），只要任何一行还有谚文就以非零退出码失败。改动后运行 `python3 -I scripts/check-no-korean.py` 即可复现该检查。
 
@@ -190,7 +195,7 @@ docker compose restart artex
 
 上游仓库提供安装脚本（`./install.sh`）、预编译二进制（Releases）、源码编译单二进制等多种方式。命令与完整步骤整理在 [`README.zh.md`](README.zh.md#安装) 的「安装」一节，下面只摘出要点。
 
-- **安装脚本：** 运行 `./install.sh` 会先检测并安装 Docker，然后让你选「① 全部 Docker」或「② 本地编译运行」。选「① 全部 Docker」时，脚本会生成 `.env`、调用 `./build-image.sh` 用当前源码构建镜像，再执行 `docker compose up -d --build`，**不会去拉已消失的上游镜像**（`autumn27/artex`）。
+- **安装脚本：** 运行 `./install.sh` 会先检测并安装 Docker，然后让你选「① 全部 Docker」或「② 本地编译运行」。选「① 全部 Docker」时，脚本会生成 `.env`、调用 `./build-image.sh` 用当前源码构建镜像，再执行 `docker compose up -d --build`，**不会去拉已消失的上游镜像**（`autumn27/artex`），启动后会提示去 `docker compose logs artex | grep '设置令牌'` 取首次设置令牌；选「② 本地编译运行」时则按下面的方式自行编译并运行（默认监听 `127.0.0.1:8787`）。
 - **从源码编译单二进制：**
 
   ```bash
@@ -224,7 +229,7 @@ docker compose restart artex
 
 **并发：** 每个任务运行的 worker agent 数量在「系统设置」里调整（默认 3）。
 
-**常用参数：** `./start.sh -addr :8787 -proxy :8788`，其中 `-addr` 是前端与 API，`-proxy` 是流量录制代理端口。
+**常用参数：** `./start.sh -addr :8787 -proxy :8788`，其中 `-addr` 是前端与 API，`-proxy` 是流量录制代理端口。`-addr` 的默认值是 `127.0.0.1:8787`（仅本机可连），要从其他设备访问需显式写成 `:8787` 这类绑定地址（参见下方「首次设置保护」）。
 
 ### 模型选择与输出语言
 
@@ -235,6 +240,15 @@ docker compose restart artex
 - **推理型（reasoning）模型请给足 `max_tokens`。** 单独使用思考通道的推理型模型，在响应 token 上限偏小时会把预算耗在内部推理上，最终面向用户的回答可能为空。这时消失的不是语言而是回答本身，请把那套 LLM 配置的 `max_tokens` 设得足够大。
 
 > **OpenAI 兼容路径的 token 上限陷阱。** 像 `gpt-4o` 这样的 OpenAI 系列模型，响应 token 上限是 16,384；而 OpenAI 兼容请求默认会带上更大的输出上限（32,768），原样发出会让所有调用以 `400 (max_tokens is too large)` 失败。此时请**在「LLM 配置」里把那套配置的 `max_tokens` 设为 16,384 或更小**。Anthropic 系列（包括默认模型 `claude-opus-4-8`）允许 32,768，不会踩到这个坑。
+
+### 首次设置保护（首次运行令牌与绑定地址）
+
+管理员账号只有一个（`ARTEX`），密码在首次访问时于 `/setup` 页面创建。为防止「谁先连上还没初始化好的实例，谁就占住账号」，系统加了以下几道保护。
+
+- **设置令牌。** 未设置密码启动时，服务端控制台日志会打印一行 `[auth] … 设置令牌: …`（Docker 下用 `docker compose logs artex` 查看）。`/setup` 页面与 `POST /api/auth/init`（`setup_token` 字段）必须携带这个值才能创建密码，填错的尝试会被限流。无人值守部署可以用 `ARTEX_SETUP_TOKEN` 固定令牌，或用 `ARTEX_ADMIN_PASSWORD` 直接写入密码（至少 8 个字符）。
+- **默认只绑定 127.0.0.1。** `artex` 的 `-addr` 默认值与 `docker-compose.yml` 的端口发布都只开在宿主机的回环地址上。要从其他设备直接访问，可改成 `-addr :8787` 或 `.env` 里的 `ARTEX_BIND=0.0.0.0`，但请先完成首次设置，并尽量改用下方的反向代理方案。未设密码却绑定到非回环地址时，启动日志会给出警告。
+- **改密码会让已签发的会话全部断开。** 令牌签名密钥与密码哈希绑定，因此无论走界面改密码、`reset-password.sh`，还是直接改数据库，此前签发的令牌都会在几秒内失效。账号被抢占或泄露后恢复时，改完密码还应一并检查自定义工具、MCP、LLM 与通知配置。
+- **CORS。** `/api` 只对 `ARTEX_CORS_ORIGINS`（逗号分隔）里列出的来源放行跨源调用。内置 UI 是同源，通常留空即可；默认只允许 `dev.sh` 起的 `next dev`（`http://localhost:5173`）。
 
 ### 反向代理部署（HTTPS / 只开放 443）
 
@@ -271,7 +285,7 @@ Nginx 配置的完整示例也在 [`README.zh.md`](README.zh.md#反向代理部�
 
 ## 系统架构
 
-ARTEX 是一套 **LLM 多 agent 驱动的自主渗透系统**：Go 单体后端（内嵌 Next.js 前端）+ PostgreSQL，agent 能力由 [`norma`](https://github.com/Autumn-27/norma) SDK 提供（`agentcore` / `tool` / `permission` / `harness` / `memory` / `transcript`）。核心是**双图架构**，以及围绕它的两条自主性机制：**worker 间过程级信息交换**与 **planner 多轮共享 todolist 稳定攻击链路**。
+ARTEX 是一套 **LLM 多 agent 驱动的自主渗透系统**：Go 单体后端（内嵌 Next.js 前端）+ PostgreSQL，agent 能力由 [`norma`](https://github.com/Autumn-27/norma)（当前无法访问，2026-10 核实）SDK 提供（`agentcore` / `tool` / `permission` / `harness` / `memory` / `transcript`）。核心是**双图架构**，以及围绕它的两条自主性机制：**worker 间过程级信息交换**与 **planner 多轮共享 todolist 稳定攻击链路**。
 
 ### 总体分层
 
@@ -524,7 +538,7 @@ python3 -I scripts/check-doc-links.py    # 文档内部链接 / 图片 / 锚点�
 
 ## 上游项目
 
-- 上游仓库：[Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX)
+- 上游仓库：[Autumn-27/ARTEX](https://github.com/Autumn-27/ARTEX)（当前无法访问，2026-10 核实）
 - 上游 README（中文原文）：[README.zh.md](README.zh.md)
-- 上游在线 Demo（中文 UI）：[https://artex-demo.vercel.app/](https://artex-demo.vercel.app/)
-- Agent SDK：[Autumn-27/norma](https://github.com/Autumn-27/norma)
+- 上游在线 Demo（中文 UI）：[https://artex-demo.vercel.app/](https://artex-demo.vercel.app/)（当前无法访问，2026-10 核实）
+- Agent SDK：[Autumn-27/norma](https://github.com/Autumn-27/norma)（当前无法访问，2026-10 核实）

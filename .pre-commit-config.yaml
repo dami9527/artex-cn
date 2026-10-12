@@ -3,10 +3,12 @@
 # 把仓库 CI 的两道确定性合并门禁提前到本地提交阶段跑一遍，让有问题的改动在推送前就被
 # 拦下。任一钩子的断言失败都会以非 0 退出码结束，提交随之中止。
 #
-# 1) detections —— 只在提交改动了检测规则（detections/）或规则固定住的上游源码时，运行
-#    一次性跑完八套检测测试的运行器（detections/tests/run-all.sh）。它与 CI
+# 1) detections —— 只在提交改动了检测规则（detections/）、规则固定住的上游源码，或防御指南
+#    里以正文内嵌的 Sigma 模板（docs/defense-{zh,en}.md）时，运行一次性跑完八套检测测试与
+#    三道非规则门禁的运行器（detections/tests/run-all.sh）。它与 CI
 #    （.github/workflows/detections.yml）用同样的规则与源码范围，能抓住只改规则、没更新
-#    测试与图层的改动。依赖 Docker（每套测试在容器里隔离执行，运行器上不装任何东西）。
+#    测试与图层的改动，也能抓住改了防御模板却没有同步指南断言的情况。依赖 Docker（每套测试
+#    在容器里隔离执行，运行器上不装任何东西）。
 # 2) docs —— 检查受跟踪的 Markdown 文档中仓库内部链接、图片、锚点（#标题）引用是否指向
 #    真实存在的对象（scripts/check-doc-links.py）。与 CI（.github/workflows/docs.yml）同一
 #    套检查；那边不带 paths 过滤、对所有改动都跑，这里也就不缩小目标文件范围（always_run）。
@@ -31,7 +33,7 @@ repos:
         entry: detections/tests/run-all.sh
         language: script
         pass_filenames: false
-        files: '^(detections/|enrich/enrich\.go|selfupdate/(github|stage)\.go|guard/guard\.go|db/db\.go|db/schema\.sql|cmd/artex/main\.go|traffic/traffic\.go)'
+        files: '^(detections/|enrich/enrich\.go|selfupdate/(github|stage)\.go|guard/guard\.go|db/db\.go|db/schema\.sql|cmd/artex/main\.go|traffic/traffic\.go|docs/defense-(zh|en)\.md)'
       - id: docs
         name: 文档内部链接、图片、锚点（#标题）完整性检查
         entry: python3 -I scripts/check-doc-links.py

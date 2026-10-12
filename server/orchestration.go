@@ -544,7 +544,7 @@ func (s *Server) refreshBuiltinToolSchemas() {
 		}
 	}
 	_ = s.m.pg.SetSetting(flag, "true")
-	log.Printf("[tools] 已刷新 orchestration/platform 工具 schema 到代码默认值(一次性)")
+	log.Print(logT("[tools] 已将 orchestration/platform 工具 schema 刷新为代码默认值（一次性）"))
 }
 
 // unbindGoalMetDefault removes goal_met's default "planner" binding ONCE (guarded by
@@ -925,7 +925,7 @@ func (s *Server) seedReporterAgent() {
 	}); err != nil {
 		log.Printf("[reporter] 创建触发器失败: %v", err)
 	}
-	log.Printf("[reporter] 已预置「%s」agent + finding 触发器", name)
+	log.Printf(logT("[reporter] 已预置「%s」agent + finding 触发器"), name)
 }
 
 // seedAutoReportFindingBinding adds "auto" to report_finding's binding ONCE so

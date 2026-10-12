@@ -81,58 +81,82 @@ func TestRenderSystemOverrideAndFallback(t *testing.T) {
 	}
 }
 
-// TestLangDirectiveAppendedToUserFacingRoles 钉住语言规约这条尾巴：每个面向用户的
-// 角色，其 system prompt 末尾都必须带上由代码追加的简体中文输出语言规约，
-// 被数据库改动过的正文不可能把它丢掉。
-func TestLangDirectiveAppendedToUserFacingRoles(t *testing.T) {
-	t.Cleanup(func() { PromptOverride = nil })
+// langMarker 是能证明 langDirective 选中了某种展示语言的无歧义子串：这些是该语言在
+// （用中文写成的）语言规约里的自称写法，因此命中就说明规约点名了这种语言。
+// 供下面的语言规约测试与角色追加测试使用。
+var langMarker = map[string]string{
+	"zh": "简体中文",
+	"en": "English",
+	"es": "Español",
+}
 
-	// 规约强制【简体中文】输出，同时保留命令、payload 等原文技术片段；两个信号都必须存在。
-	dir := langDirective()
-	if !strings.Contains(dir, "简体中文") {
-		t.Fatalf("langDirective 必须强制简体中文输出，实际得到 %q", dir)
+// TestLangDirectiveLocalized 钉住三种展示语言下的输出语言规约尾巴：每种语言的规约都要
+// 点名该语言、保留原文技术片段、禁止镜像目标或资料的语言，并点名规划者的态势总结。
+// 对每种非中文展示语言，「绝不能把中文输出给用户」这一条都必须存在；展示语言本身是
+// 中文时，中文输出正是目标，该条必须缺席。
+func TestLangDirectiveLocalized(t *testing.T) {
+	for _, code := range SupportedOutputLangs {
+		dir := langDirective(code)
+		if !strings.Contains(dir, langMarker[code]) {
+			t.Fatalf("%s: langDirective 必须点名展示语言 (%q)，实际得到 %q", code, langMarker[code], dir)
+		}
+		if !strings.Contains(dir, "payload") || !strings.Contains(dir, "原样逐字保留") {
+			t.Fatalf("%s: langDirective 必须逐字保留命令/payload，实际得到 %q", code, dir)
+		}
+		if !strings.Contains(dir, "不要镜像或照抄目标") {
+			t.Fatalf("%s: langDirective 必须禁止镜像目标或资料的语言，实际得到 %q", code, dir)
+		}
+		if !strings.Contains(dir, "态势") {
+			t.Fatalf("%s: langDirective 必须点名规划者态势总结属于面向用户的字段，实际得到 %q", code, dir)
+		}
+		// 「绝不能把中文输出给用户」这一条适用于每种非中文展示语言（防止规划者
+		// 态势总结漂移）。展示语言本身就是中文时，中文输出正是目标，因此该条必须缺席。
+		hasNoZhClause := strings.Contains(dir, "也绝不能把中文输出给用户")
+		if code == "zh" && hasNoZhClause {
+			t.Fatalf("zh: 展示语言是中文时，规约不得禁止输出中文，实际得到 %q", dir)
+		}
+		if code != "zh" && !hasNoZhClause {
+			t.Fatalf("%s: langDirective 必须禁止把中文泄漏给用户，实际得到 %q", code, dir)
+		}
 	}
-	if !strings.Contains(dir, "payload") || !strings.Contains(dir, "原样逐字保留") {
-		t.Fatalf("langDirective 必须逐字保留命令/payload，实际得到 %q", dir)
-	}
-	// L1 防漂移加固：规约必须 (1) 禁止把简体中文以外的语言（含英文）当作展示正文
-	// （规划者态势总结漂移），以及 (2) 禁止在展示字段里镜像目标或资料的语言——
-	// 例如英文的目标应用（report_finding 漂移）。两条子句都锁在这里，
-	// 防止后续改动悄悄删掉。
-	if !strings.Contains(dir, "简体中文以外的任何语言") {
-		t.Fatalf("langDirective 必须禁止用简体中文以外的语言写展示正文，实际得到 %q", dir)
-	}
-	if !strings.Contains(dir, "不要镜像或照抄目标") {
-		t.Fatalf("langDirective 必须禁止镜像目标或资料的语言，实际得到 %q", dir)
-	}
-	if !strings.Contains(dir, "态势") {
-		t.Fatalf("langDirective 必须点名规划者态势总结属于面向用户的字段，实际得到 %q", dir)
-	}
+}
+
+// TestLangDirectiveAppendedToUserFacingRoles 钉住语言规约这条尾巴的接线：每个面向用户的
+// 角色，其 system prompt 末尾都必须带上由代码追加的、当前所选语言的输出语言规约，
+// 数据库改动过的正文不可能把它丢掉。通过角色解析所用的 OutputLanguage 钩子，
+// 对每种支持的展示语言各跑一遍。
+func TestLangDirectiveAppendedToUserFacingRoles(t *testing.T) {
+	t.Cleanup(func() { PromptOverride = nil; OutputLanguage = nil })
 
 	// 即使数据库正文是纯非规约文本，代码追加的尾巴仍会挂在每个面向用户的构造函数
-	// 后面——与中间产物尾巴是同一套保证。自定义正文永远无法把简体中文这条强制
+	// 后面——与中间产物尾巴是同一套保证。自定义正文永远无法把输出语言这条强制
 	// 要求翻译掉。
 	PromptOverride = func(string) (string, bool) { return "BODY-ONLY", true }
-	cases := map[string]string{
-		"worker":    workerSystem("", "", "/data", "/data"),
-		"planner":   plannerSystem("g", "/data", "/data"),
-		"mainagent": mainAgentSystem("g", "/data", "/data"),
-		"chat":      chatSystem("chat", "/data", "/data"),
-		// goals 同样面向用户：set_goals/set_constraints 持久化的目标与约束节点会
-		// 展示在 UI 的图谱/计划页。withScope=true 会走更长的组装路径（正文 + 范围
-		// 尾巴），所以中文尾巴仍然必须落在最后——在正文与代码拥有的范围尾巴之后。
-		"goals": goalsSystem("/data", true),
-	}
-	for role, sys := range cases {
-		if !strings.HasPrefix(sys, "BODY-ONLY") {
-			t.Fatalf("%s: 数据库正文未被采用: %q", role, sys)
+
+	for _, code := range SupportedOutputLangs {
+		OutputLanguage = func() string { return code }
+		marker := langMarker[code]
+		cases := map[string]string{
+			"worker":    workerSystem("", "", "/data", "/data"),
+			"planner":   plannerSystem("g", "/data", "/data"),
+			"mainagent": mainAgentSystem("g", "/data", "/data"),
+			"chat":      chatSystem("chat", "/data", "/data"),
+			// goals 同样面向用户：set_goals/set_constraints 持久化的目标与约束节点会
+			// 展示在 UI 的图谱/计划页。withScope=true 会走更长的组装路径（正文 + 范围
+			// 尾巴），所以语言尾巴仍然必须落在最后——在正文与代码拥有的范围尾巴之后。
+			"goals": goalsSystem("/data", true),
 		}
-		if !strings.Contains(sys, "简体中文") {
-			t.Fatalf("%s: 缺少简体中文输出语言尾巴: %q", role, sys)
-		}
-		// 规约就是那条尾巴——必须排在正文之后（就近生效）。
-		if strings.Index(sys, "简体中文") <= strings.Index(sys, "BODY-ONLY") {
-			t.Fatalf("%s: langDirective 必须追加在正文之后: %q", role, sys)
+		for role, sys := range cases {
+			if !strings.HasPrefix(sys, "BODY-ONLY") {
+				t.Fatalf("%s/%s: 数据库正文未被采用: %q", code, role, sys)
+			}
+			if !strings.Contains(sys, marker) {
+				t.Fatalf("%s/%s: 缺少输出语言尾巴 (%q): %q", code, role, marker, sys)
+			}
+			// 规约就是那条尾巴——必须排在正文之后（就近生效）。
+			if strings.Index(sys, marker) <= strings.Index(sys, "BODY-ONLY") {
+				t.Fatalf("%s/%s: langDirective 必须追加在正文之后: %q", code, role, sys)
+			}
 		}
 	}
 }

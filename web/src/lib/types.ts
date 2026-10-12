@@ -947,6 +947,9 @@ export interface Settings {
   notify_enabled?: boolean; // 推送总开关，默认开；用于维护期一键止血
   notify_public_base_url?: string; // 漏洞详情回链的外部访问地址；空=消息不带回链
   notify_digest_interval_min?: number; // 汇总模式周期（分钟），默认 30
+  // 面向用户的输出语言(en/zh/es)。agent 生成的报告、摘要与对话回复都跟随该语言。
+  // 设置界面的「显示语言」选择器会连同 UI 语言一起保存这个值。
+  output_language?: string;
 }
 
 // ---- 漏洞 IM 推送 ----

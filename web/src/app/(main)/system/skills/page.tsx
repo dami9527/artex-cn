@@ -37,7 +37,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { api } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 import type { Agent, MCPServer, MissingSkill, SkillCall, SkillItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -399,9 +399,9 @@ export default function SkillsPage() {
       load();
     } catch (e) {
       const msg = (e as Error).message;
-      // offer overwrite when the skill already exists
-      // (与 server_mgmt.go 的 errMgmtSkillExistsPre 配对的跨栈标记)
-      if (!overwrite && msg.includes("已存在")) {
+      // 技能已存在时提示是否覆盖(server_mgmt.go 以 409 响应)。
+      // 文案随显示语言而变，因此按 status 判定，不按文案匹配。
+      if (!overwrite && e instanceof ApiError && e.status === 409) {
         if (window.confirm(t("overwriteConfirm", { msg }))) {
           await uploadZip(file, true);
           return;
