@@ -58,9 +58,19 @@ services:
       - "${ARTEX_BIND:-127.0.0.1}:8787:8787"
       - "127.0.0.1:8788:8788"
     volumes:
-      # 把数据目录（含 jwt.key、SQLite 等）绑定到项目根目录的 data/，
+      # 把数据目录绑定到项目根目录的 data/（sessions、tasks、traffic、transcripts），
       # 便于在宿主机直接查看与备份，重建容器也不会丢。
+      # 注意：元数据（任务、漏洞、设置等）在 Postgres 的 pgdata 卷里，不在这里。
       - ./data:/app/data
+      # 注意：JWT 签名密钥是 /app/jwt.key，**不在**上面的挂载里 —— 它必须留在可被
+      # 文件管理器浏览的 data/ 之外，否则能读到工作区的人就能伪造登录令牌。
+      # 代价是每次重建容器都会生成新的密钥，因此所有已登录会话失效，需要重新登录
+      # 一次（管理员密码在 Postgres 里，不受影响）。若希望会话跨重建保留，可另加一条
+      # 单文件挂载：先在宿主机把密钥取出来（该路径已被 .gitignore 忽略，免得提交密钥），
+      # 再挂进容器 ——
+      #   mkdir -p .secrets
+      #   docker compose cp artex:/app/jwt.key .secrets/jwt.key
+      #   - ./.secrets/jwt.key:/app/jwt.key
       # 把项目根目录的 skills 挂进容器（覆盖镜像内置的 /app/skills）。
       # 改 skill 后无需重新构建镜像，容器直接读宿主机上的文件。
       - ./skills:/app/skills
